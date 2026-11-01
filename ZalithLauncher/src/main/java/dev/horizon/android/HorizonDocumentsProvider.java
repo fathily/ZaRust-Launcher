@@ -1,5 +1,7 @@
 package dev.horizon.android;
 
+import com.movtery.zalithlauncher.BuildConfig;
+
 import android.database.Cursor;
 import android.database.MatrixCursor;
 import android.net.Uri;
@@ -35,6 +37,8 @@ public final class HorizonDocumentsProvider extends DocumentsProvider {
     }
 
     @Override public boolean onCreate() {
+        // Keep the provider dormant in ordinary Java-only APKs.
+        if (!BuildConfig.RUST_EDITION_ENABLED) return false;
         System.loadLibrary("horizon_android");
         return true;
     }
