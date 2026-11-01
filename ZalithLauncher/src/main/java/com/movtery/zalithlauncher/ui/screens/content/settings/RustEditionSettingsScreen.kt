@@ -81,9 +81,19 @@ fun RustEditionSettingsScreen() {
     var modError by remember { mutableStateOf<String?>(null) }
 
     fun updateMod(id: String, enabled: Boolean) {
-        runCatching { RustEditionBridge.setModEnabled(context, id, enabled) }
-            .onSuccess { modFlags = modFlags + (id to enabled); modError = null }
-            .onFailure { modError = it.message ?: "Gagal mengubah mod Rust" }
+        scope.launch {
+            val result = runCatching {
+                withContext(Dispatchers.IO) {
+                    RustEditionBridge.setModEnabled(context, id, enabled)
+                }
+            }
+            result.onSuccess {
+                modFlags = modFlags + (id to enabled)
+                modError = null
+            }.onFailure {
+                modError = it.message ?: "Gagal mengubah mod Rust"
+            }
+        }
     }
 
     fun save(key: String, value: Any) {
