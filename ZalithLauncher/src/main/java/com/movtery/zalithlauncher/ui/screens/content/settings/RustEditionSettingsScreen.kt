@@ -52,6 +52,7 @@ fun RustEditionSettingsScreen() {
     var avoidCutout by remember { mutableStateOf(initial.optBoolean("avoid_cutout", false)) }
     var performanceHints by remember { mutableStateOf(initial.optBoolean("performance_hints", false)) }
     var gpuProfile by remember { mutableStateOf(initial.optBoolean("gpu_profile", false)) }
+    var recordPerformance by remember { mutableStateOf(initial.optBoolean("record_performance", false)) }
     var displayHz by remember { mutableStateOf(initial.optInt("display_hz", 0).toString()) }
     var playerName by remember { mutableStateOf(initial.optString("name", "")) }
     var server by remember { mutableStateOf(initial.optString("server", "")) }
@@ -71,7 +72,7 @@ fun RustEditionSettingsScreen() {
     }
 
     LaunchedEffect(Unit) {
-        ready = withContext(Dispatchers.IO) { RustEditionBridge.isReady(context) }
+        ready = runCatching { withContext(Dispatchers.IO) { RustEditionBridge.isReady(context) } }.getOrDefault(false)
         checking = false
     }
     LaunchedEffect(installing) {
@@ -119,9 +120,13 @@ fun RustEditionSettingsScreen() {
                         scope.launch {
                             installing = true
                             error = null
-                            val result = withContext(Dispatchers.IO) { RustEditionBridge.install(context) }
+                            val result = runCatching {
+                                withContext(Dispatchers.IO) { RustEditionBridge.install(context) }
+                            }.getOrElse { it.message ?: "Gagal memasang resource Minecraft" }
                             installing = false
-                            ready = withContext(Dispatchers.IO) { RustEditionBridge.isReady(context) }
+                            ready = runCatching {
+                                withContext(Dispatchers.IO) { RustEditionBridge.isReady(context) }
+                            }.getOrDefault(false)
                             if (result.isNotBlank()) error = result
                         }
                     }
@@ -194,6 +199,10 @@ fun RustEditionSettingsScreen() {
                 RustSwitchRow("GPU profiling", gpuProfile) {
                     gpuProfile = it
                     save("gpu_profile", it)
+                }
+                RustSwitchRow("Performance recording", recordPerformance) {
+                    recordPerformance = it
+                    save("record_performance", it)
                 }
                 RustOptionRow(
                     "Refresh rate", displayHz,
