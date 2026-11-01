@@ -94,6 +94,7 @@ import kotlinx.coroutines.withContext
 import com.movtery.zalithlauncher.BuildConfig
 import com.movtery.zalithlauncher.BuildKeys
 import com.movtery.zalithlauncher.R
+import com.movtery.zalithlauncher.game.account.Account
 import com.movtery.zalithlauncher.game.account.AccountsManager
 import com.movtery.zalithlauncher.game.version.installed.PlayTimeRepository
 import com.movtery.zalithlauncher.game.version.installed.Version
@@ -133,6 +134,7 @@ fun LauncherScreen(
     backStackViewModel: ScreenBackStackViewModel,
     navigateToVersions: (Version) -> Unit,
     onLaunchGame: (Version?) -> Unit,
+    onLaunchRustEdition: (Account?) -> Unit,
     onOpenLink: (String) -> Unit,
     onHomePageEvent: (MarkdownBlock.Button.Event) -> Unit,
     onNavigateToStats: () -> Unit = {},
@@ -216,6 +218,7 @@ fun LauncherScreen(
                     .fillMaxHeight()
                     .padding(top = 12.dp, end = 12.dp, bottom = 12.dp),
                 onLaunchGame = onLaunchGame,
+                onLaunchRustEdition = onLaunchRustEdition,
                 toAccountManageScreen = toAccountManageScreen,
                 toVersionManageScreen = toVersionManageScreen,
                 toVersionSettingsScreen = toVersionSettingsScreen,
@@ -611,6 +614,7 @@ private fun LastLogCard(
 private fun RightMenuContent(
     modifier: Modifier = Modifier,
     onLaunchGame: (Version?) -> Unit,
+    onLaunchRustEdition: (Account?) -> Unit,
     toAccountManageScreen: () -> Unit,
     toVersionManageScreen: () -> Unit,
     toVersionSettingsScreen: () -> Unit,
@@ -627,7 +631,7 @@ private fun RightMenuContent(
     ConstraintLayout(
         modifier = modifier
     ) {
-        val (accountAvatar, versionManagerLayout, launchButton) = createRefs()
+        val (accountAvatar, versionManagerLayout, launchButton, rustButton) = createRefs()
 
         AccountAvatar(
             modifier = Modifier
@@ -740,7 +744,7 @@ private fun RightMenuContent(
             Modifier
                 .fillMaxWidth()
                 .constrainAs(launchButton) {
-                    bottom.linkTo(parent.bottom, margin = 8.dp)
+                    bottom.linkTo(rustButton.top, margin = 8.dp)
                 }
                 .padding(PaddingValues(horizontal = 12.dp)),
             {
@@ -750,6 +754,21 @@ private fun RightMenuContent(
                 MarqueeText(text = stringResource(R.string.main_launch_game))
             }
         )
+
+        launchButton(
+            Modifier
+                .fillMaxWidth()
+                .constrainAs(rustButton) {
+                    bottom.linkTo(parent.bottom, margin = 8.dp)
+                }
+                .padding(PaddingValues(horizontal = 12.dp)),
+            {
+                onLaunchRustEdition(account)
+            },
+            {
+                MarqueeText(text = "Play Rust Edition · Starling")
+            }
+        )
     }
 }
 
@@ -757,6 +776,7 @@ private fun RightMenuContent(
 private fun RightMenu(
     isVisible: Boolean,
     onLaunchGame: (Version?) -> Unit,
+    onLaunchRustEdition: (Account?) -> Unit,
     modifier: Modifier = Modifier,
     toAccountManageScreen: () -> Unit = {},
     toVersionManageScreen: () -> Unit = {},
@@ -775,6 +795,7 @@ private fun RightMenu(
         RightMenuContent(
             modifier = Modifier.fillMaxSize(),
             onLaunchGame = onLaunchGame,
+            onLaunchRustEdition = onLaunchRustEdition,
             toAccountManageScreen = toAccountManageScreen,
             toVersionManageScreen = toVersionManageScreen,
             toVersionSettingsScreen = toVersionSettingsScreen,
