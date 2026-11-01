@@ -24,11 +24,9 @@ public final class RustEditionBridge {
 
     private static native boolean nativeIsReady(String homePath);
     private static native String nativeInstall(String homePath, String cachePath, String progressPath);
-    private static native String nativeAccountStatus(String homePath);
-    private static native String nativeStartSignIn(String homePath);
-    private static native String nativeSignInStatus(String homePath);
-    private static native String nativeCancelSignIn(String homePath);
-    private static native String nativeSignOut(String homePath);
+    private static native String nativeSyncZalithAccount(
+            String homePath, String uuid, String name, String accessToken,
+            String refreshToken, long expiresAt, String xuid, boolean microsoft);
 
     public static File home(Context context) {
         return new File(context.getFilesDir(), "rust-edition");
@@ -86,32 +84,19 @@ public final class RustEditionBridge {
         }
     }
 
-    public static JSONObject accountStatus(Context context) {
-        return jsonOrEmpty(nativeAccountStatus(home(context).getAbsolutePath()));
-    }
-
-    public static JSONObject startSignIn(Context context) {
-        return jsonOrEmpty(nativeStartSignIn(home(context).getAbsolutePath()));
-    }
-
-    public static JSONObject signInStatus(Context context) {
-        return jsonOrEmpty(nativeSignInStatus(home(context).getAbsolutePath()));
-    }
-
-    public static JSONObject cancelSignIn(Context context) {
-        return jsonOrEmpty(nativeCancelSignIn(home(context).getAbsolutePath()));
-    }
-
-    public static JSONObject signOut(Context context) {
-        return jsonOrEmpty(nativeSignOut(home(context).getAbsolutePath()));
-    }
-
-    private static JSONObject jsonOrEmpty(String value) {
-        try {
-            return new JSONObject(value == null ? "{}" : value);
-        } catch (JSONException ignored) {
-            return new JSONObject();
-        }
+    /** Syncs the account currently selected in Zalith without asking the user to sign in again. */
+    public static String syncZalithAccount(
+            Context context, String uuid, String name, String accessToken,
+            String refreshToken, long expiresAt, String xuid, boolean microsoft) {
+        return nativeSyncZalithAccount(
+                home(context).getAbsolutePath(),
+                uuid == null ? "" : uuid,
+                name == null ? "" : name,
+                accessToken == null ? "" : accessToken,
+                refreshToken == null ? "" : refreshToken,
+                expiresAt,
+                xuid == null ? "" : xuid,
+                microsoft);
     }
 
     public static JSONObject readSettings(Context context) {
