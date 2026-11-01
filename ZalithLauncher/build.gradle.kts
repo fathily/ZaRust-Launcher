@@ -15,9 +15,9 @@ plugins {
 
 val zalithPackageName = "com.movtery.zalithlauncher"
 val zarustApplicationId = "com.zarust.launcher"
-val launcherAPPName = project.findProperty("launcher_app_name") as? String ?: "ZaRust Launcher"
-val launcherName = project.findProperty("launcher_name") as? String ?: "ZaRust"
-val launcherShortName = project.findProperty("launcher_short_name") as? String ?: "ZaRust"
+val launcherAPPName = "ZaRust Launcher"
+val launcherName = "ZaRust"
+val launcherShortName = "ZaRust"
 val launcherUrl = project.findProperty("url_home") as? String ?: error("The \"url_home\" property is not set in gradle.properties.")
 
 val launcherVersionCode = (project.findProperty("launcher_version_code") as? String)?.toIntOrNull() ?: error("The \"launcher_version_code\" property is not set as an integer in gradle.properties.")
