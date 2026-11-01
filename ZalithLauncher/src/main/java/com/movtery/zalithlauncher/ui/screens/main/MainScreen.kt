@@ -152,7 +152,7 @@ fun MainScreen(
 
     val isTaskMenuExpanded = AllSettings.launcherTaskMenuExpanded.state
     val showDisclaimer = AllSettings.disclaimerAccepted.state
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val appContext = androidx.compose.ui.platform.LocalContext.current
 
     if (!showDisclaimer) {
         SimpleAlertDialog(
@@ -165,7 +165,7 @@ fun MainScreen(
             },
             onDismiss = {
                 val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(URL_ORIGINAL_PROJECT))
-                context.startActivity(intent)
+                appContext.startActivity(intent)
             }
         )
     }
@@ -589,7 +589,7 @@ private fun NavigationUI(
                             )
                         },
                         onLaunchRustEdition = { account ->
-                            RustEditionBridge.launch(context, account)
+                            RustEditionBridge.launch(appContext, account)
                         },
                         onOpenLink = {
                             eventViewModel.sendEvent(EventViewModel.Event.OpenLink(it))
