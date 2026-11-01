@@ -45,29 +45,43 @@
         android:allowNativeHeapPointerTagging="false"
         tools:targetApi="33"
         tools:ignore="DiscouragedApi">
-        <provider
-            android:name="dev.horizon.android.HorizonDocumentsProvider"
-            android:authorities="${applicationId}.documents"
-            android:exported="true"
-            android:grantUriPermissions="true"
-            android:permission="android.permission.MANAGE_DOCUMENTS">
-            <intent-filter>
-                <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
-            </intent-filter>
-        </provider>
-
         <activity
-            android:name="dev.horizon.android.HorizonActivity"
+            android:name="io.github.juanluci.starling.StarlingActivity"
             android:process=":rustgame"
             android:exported="false"
+            android:launchMode="singleTask"
             android:screenOrientation="sensorLandscape"
-            android:configChanges="orientation|screenSize|keyboardHidden|keyboard|density|screenLayout"
+            android:configChanges="orientation|screenSize|keyboardHidden|keyboard|density|screenLayout|navigation"
             android:windowSoftInputMode="adjustResize"
-            android:theme="@style/HorizonGameTheme">
+            android:theme="@style/Starling.Game">
             <meta-data
                 android:name="android.app.lib_name"
                 android:value="horizon_android" />
+            <meta-data
+                android:name="android.app.func_name"
+                android:value="starling_on_create" />
         </activity>
+
+        <activity
+            android:name="io.github.juanluci.starling.LauncherActivity"
+            android:process=":rustlauncher"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:screenOrientation="sensorLandscape"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <service
+            android:name="io.github.juanluci.starling.WorkService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <provider
+            android:name="io.github.juanluci.starling.UpdateProvider"
+            android:authorities="${applicationId}.updates"
+            android:exported="false"
+            android:grantUriPermissions="true" />
 
         <activity
             android:name=".ui.activities.SplashActivity"
