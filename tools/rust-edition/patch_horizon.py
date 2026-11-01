@@ -94,6 +94,177 @@ fn zarust_jni_string(
     env.get_string(value).map(|text| text.into()).map_err(|error| error.to_string())
 }
 
+fn zarust_account_home(
+    env: &mut jni::JNIEnv<'_>,
+    value: &jni::objects::JString<'_>,
+) -> std::result::Result<std::path::PathBuf, String> {
+    let home = std::path::PathBuf::from(zarust_jni_string(env, value)?);
+    crate::backend::initialize(home.clone());
+    let vm = env.get_java_vm().map_err(|error| error.to_string())?;
+    crate::secure_store::initialize(vm);
+    Ok(home)
+}
+
+static ZARUST_SIGN_IN: std::sync::Mutex<Option<crate::account::SignIn>> =
+    std::sync::Mutex::new(None);
+
+fn zarust_sign_in_json() -> serde_json::Value {
+    let guard = ZARUST_SIGN_IN.lock().unwrap_or_else(|error| error.into_inner());
+    let Some(sign_in) = guard.as_ref() else {
+        return serde_json::json!({"state":"idle"});
+    };
+    match sign_in.state() {
+        crate::account::SignInState::Starting => serde_json::json!({"state":"starting"}),
+        crate::account::SignInState::Code(code) => serde_json::json!({
+            "state":"code",
+            "user_code":code.user_code,
+            "verification_uri":code.verification_uri,
+            "expires_at":code.expires_at
+        }),
+        crate::account::SignInState::Done(Ok(account)) => serde_json::json!({
+            "state":"done",
+            "success":true,
+            "account_name":account.name
+        }),
+        crate::account::SignInState::Done(Err(error)) => serde_json::json!({
+            "state":"done",
+            "success":false,
+            "error":error
+        }),
+    }
+}
+
+fn zarust_json_string(env: &mut jni::JNIEnv<'_>, value: serde_json::Value) -> jni::sys::jstring {
+    env.new_string(value.to_string())
+        .map(|value| value.into_raw())
+        .unwrap_or(std::ptr::null_mut())
+}
+
+#[unsafe(no_mangle)]
+extern "system" fn Java_dev_horizon_android_RustEditionBridge_nativeAccountStatus(
+    mut env: jni::JNIEnv<'_>,
+    _class: jni::objects::JClass<'_>,
+    home_arg: jni::objects::JString<'_>,
+) -> jni::sys::jstring {
+    let value = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let _home = zarust_account_home(&mut env, &home_arg)?;
+        let accounts = crate::account::Accounts::load();
+        let status = accounts.selected().map(|account| {
+            let signed_in = crate::account::store()
+                .get(&account.uuid)
+                .ok()
+                .flatten()
+                .and_then(|secrets| serde_json::from_str::<crate::account::Secrets>(&secrets).ok())
+                .is_some();
+            serde_json::json!({
+                "signed_in":signed_in,
+                "account_name":account.name
+            })
+        }).unwrap_or_else(|| serde_json::json!({
+            "signed_in":false,
+            "account_name":null
+        }));
+        Ok::<_, String>(status)
+    })).unwrap_or_else(|_| Err("Account status could not be read".to_string()));
+    match value {
+        Ok(value) => zarust_json_string(&mut env, value),
+        Err(error) => zarust_json_string(&mut env, serde_json::json!({
+            "signed_in":false,"error":error
+        })),
+    }
+}
+
+#[unsafe(no_mangle)]
+extern "system" fn Java_dev_horizon_android_RustEditionBridge_nativeStartSignIn(
+    mut env: jni::JNIEnv<'_>,
+    _class: jni::objects::JClass<'_>,
+    home_arg: jni::objects::JString<'_>,
+) -> jni::sys::jstring {
+    let value = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let _home = zarust_account_home(&mut env, &home_arg)?;
+        let mut slot = ZARUST_SIGN_IN.lock().unwrap_or_else(|error| error.into_inner());
+        let restart = slot.as_ref().is_none_or(|task| {
+            matches!(task.state(), crate::account::SignInState::Done(_))
+        });
+        if restart {
+            let client_id = crate::account::client_id()
+                .unwrap_or_else(|| crate::catalog::MICROSOFT_CLIENT_ID.to_string());
+            *slot = Some(crate::account::SignIn::start_with_client_id(Some(client_id)));
+        }
+        drop(slot);
+        Ok::<_, String>(zarust_sign_in_json())
+    })).unwrap_or_else(|_| Err("Microsoft sign-in could not start".to_string()));
+    match value {
+        Ok(value) => zarust_json_string(&mut env, value),
+        Err(error) => zarust_json_string(&mut env, serde_json::json!({
+            "state":"done","success":false,"error":error
+        })),
+    }
+}
+
+#[unsafe(no_mangle)]
+extern "system" fn Java_dev_horizon_android_RustEditionBridge_nativeSignInStatus(
+    mut env: jni::JNIEnv<'_>,
+    _class: jni::objects::JClass<'_>,
+    home_arg: jni::objects::JString<'_>,
+) -> jni::sys::jstring {
+    let value = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let _home = zarust_account_home(&mut env, &home_arg)?;
+        Ok::<_, String>(zarust_sign_in_json())
+    })).unwrap_or_else(|_| Err("Microsoft sign-in status could not be read".to_string()));
+    match value {
+        Ok(value) => zarust_json_string(&mut env, value),
+        Err(error) => zarust_json_string(&mut env, serde_json::json!({
+            "state":"done","success":false,"error":error
+        })),
+    }
+}
+
+#[unsafe(no_mangle)]
+extern "system" fn Java_dev_horizon_android_RustEditionBridge_nativeCancelSignIn(
+    mut env: jni::JNIEnv<'_>,
+    _class: jni::objects::JClass<'_>,
+    home_arg: jni::objects::JString<'_>,
+) -> jni::sys::jstring {
+    let value = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let _home = zarust_account_home(&mut env, &home_arg)?;
+        let mut slot = ZARUST_SIGN_IN.lock().unwrap_or_else(|error| error.into_inner());
+        if let Some(task) = slot.take() {
+            task.cancel();
+        }
+        Ok::<_, String>(serde_json::json!({"state":"idle"}))
+    })).unwrap_or_else(|_| Err("Sign-in cancellation failed".to_string()));
+    match value {
+        Ok(value) => zarust_json_string(&mut env, value),
+        Err(error) => zarust_json_string(&mut env, serde_json::json!({"state":"done","success":false,"error":error})),
+    }
+}
+
+#[unsafe(no_mangle)]
+extern "system" fn Java_dev_horizon_android_RustEditionBridge_nativeSignOut(
+    mut env: jni::JNIEnv<'_>,
+    _class: jni::objects::JClass<'_>,
+    home_arg: jni::objects::JString<'_>,
+) -> jni::sys::jstring {
+    let value = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let _home = zarust_account_home(&mut env, &home_arg)?;
+        let mut slot = ZARUST_SIGN_IN.lock().unwrap_or_else(|error| error.into_inner());
+        if let Some(task) = slot.take() {
+            task.cancel();
+        }
+        let mut accounts = crate::account::Accounts::load();
+        if let Some(account) = accounts.selected().cloned() {
+            accounts.remove(crate::account::store(), &account.uuid)?;
+            accounts.save()?;
+        }
+        Ok::<_, String>(serde_json::json!({"signed_in":false}))
+    })).unwrap_or_else(|_| Err("Sign out failed".to_string()));
+    match value {
+        Ok(value) => zarust_json_string(&mut env, value),
+        Err(error) => zarust_json_string(&mut env, serde_json::json!({"signed_in":false,"error":error})),
+    }
+}
+
 #[unsafe(no_mangle)]
 extern "system" fn Java_dev_horizon_android_RustEditionBridge_nativeIsReady(
     mut env: jni::JNIEnv<'_>,
