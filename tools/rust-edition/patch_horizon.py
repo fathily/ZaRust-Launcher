@@ -90,8 +90,8 @@ replace_once(
 fn zarust_jni_string(
     env: &mut jni::JNIEnv<'_>,
     value: &jni::objects::JString<'_>,
-) -> Result<String, String> {
-    env.get_string(value).map(Into::into).map_err(|error| error.to_string())
+) -> std::result::Result<String, String> {
+    env.get_string(value).map(|text| text.into()).map_err(|error| error.to_string())
 }
 
 #[unsafe(no_mangle)]
