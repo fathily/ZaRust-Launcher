@@ -167,7 +167,8 @@ fun RustEditionSettingsScreen() {
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Grafis", style = MaterialTheme.typography.titleMedium)
+                Text("Perubahan pengaturan diterapkan saat Rust Edition diluncurkan berikutnya.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("Grafis", style = MaterialTheme.typography.titleMedium)
                 RustOptionRow(
                     "Rendering API", renderer,
                     listOf("Vulkan Compatibility" to "vulkan-compatibility", "Vulkan" to "vulkan", "OpenGL ES (eksperimental)" to "open-gl")
