@@ -17,6 +17,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: zarust-rust-edition-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   rust-edition-arm64:
     name: Rust Edition (arm64-v8a) + ZaRust
