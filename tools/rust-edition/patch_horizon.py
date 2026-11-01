@@ -77,4 +77,5 @@ replace_once(
     "        if let Some(mut game) = self.game.take() {\n            game.exiting(events);\n            drop(game);\n        }\n        crate::performance::stop();",
     "        if let Some(mut game) = self.game.take() {\n            game.exiting(events);\n            drop(game);\n        }\n        if self.launch_from_zarust {\n            crate::performance::stop();\n            crate::platform::hide();\n            horizon_client::auth::clear_current();\n            crate::diagnostics::heartbeat(\"returned_to_zarust\", || serde_json::json!({}));\n            events.exit();\n            return;\n        }\n        crate::performance::stop();",
 )
-\nprint("Horizon storage isolation and direct-launch patches applied.")
+
+print("Horizon storage isolation and direct-launch patches applied.")
