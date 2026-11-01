@@ -11,7 +11,7 @@
 
 ## 🦀 Rust Edition (Horizon Android)
 
-ZaRust now has a separate native Rust game path alongside Java Edition. See [Rust Edition architecture, compatibility, storage separation, and build instructions](./RUST_EDITION.md). The initial combined Rust build targets arm64-v8a / Android 9+; the normal Java build remains independent.
+ZaRust adds Horizon's native Rust engine as an integrated game edition: install, progress, and engine settings are managed by ZaRust's own UI, while the native activity is used only as the game surface. Java Edition remains independent. See [Rust Edition architecture, compatibility, storage separation, and build instructions](./RUST_EDITION.md). The initial Rust build targets arm64-v8a / Android 9+.
 
 ## Some Statistics
 
