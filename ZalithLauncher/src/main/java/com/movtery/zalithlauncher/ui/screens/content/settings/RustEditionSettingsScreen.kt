@@ -1,5 +1,9 @@
 package com.movtery.zalithlauncher.ui.screens.content.settings
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -63,6 +67,9 @@ fun RustEditionSettingsScreen() {
     var installing by remember { mutableStateOf(false) }
     var progress by remember { mutableStateOf(JSONObject()) }
     var error by remember { mutableStateOf<String?>(null) }
+    var accountStatus by remember { mutableStateOf(JSONObject()) }
+    var authStatus by remember { mutableStateOf(JSONObject()) }
+    var authPolling by remember { mutableStateOf(false) }
 
     fun save(key: String, value: Any) {
         runCatching {
@@ -80,6 +87,26 @@ fun RustEditionSettingsScreen() {
         while (installing) {
             progress = RustEditionBridge.readProgress(context)
             delay(350)
+        }
+    }
+    LaunchedEffect(authPolling) {
+        while (authPolling) {
+            authStatus = withContext(Dispatchers.IO) {
+                RustEditionBridge.signInStatus(context)
+            }
+            if (authStatus.optString("state") == "done") {
+                authPolling = false
+                accountStatus = withContext(Dispatchers.IO) {
+                    RustEditionBridge.accountStatus(context)
+                }
+            } else {
+                delay(800)
+            }
+        }
+    }
+    LaunchedEffect(Unit) {
+        accountStatus = withContext(Dispatchers.IO) {
+            RustEditionBridge.accountStatus(context)
         }
     }
 
@@ -221,6 +248,93 @@ fun RustEditionSettingsScreen() {
                 ) {
                     orientation = it
                     save("orientation", it)
+                }
+            }
+        }
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Akun Microsoft", style = MaterialTheme.typography.titleMedium)
+                val signedIn = accountStatus.optBoolean("signed_in", false)
+                Text(
+                    if (signedIn) "Masuk sebagai " + accountStatus.optString("account_name")
+                    else "Belum ada akun Microsoft. Singleplayer/offline tetap tersedia.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                if (authStatus.optString("state") == "code") {
+                    Text("Buka halaman Microsoft lalu masukkan kode berikut:")
+                    Text(
+                        authStatus.optString("user_code"),
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = {
+                            val clipboard = context.getSystemService(ClipboardManager::class.java)
+                            clipboard?.setPrimaryClip(
+                                ClipData.newPlainText("Microsoft sign-in code", authStatus.optString("user_code"))
+                            )
+                        }) {
+                            Text("Salin kode")
+                        }
+                        Button(onClick = {
+                            val uri = Uri.parse(authStatus.optString("verification_uri"))
+                            context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+                        }) {
+                            Text("Buka Microsoft")
+                        }
+                    }
+                }
+                if (authStatus.optString("state") == "done" && !authStatus.optBoolean("success", false)) {
+                    Text(
+                        authStatus.optString("error", "Microsoft sign-in gagal"),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        enabled = !authPolling && !signedIn,
+                        onClick = {
+                            scope.launch {
+                                authStatus = withContext(Dispatchers.IO) {
+                                    RustEditionBridge.startSignIn(context)
+                                }
+                                authPolling = authStatus.optString("state") != "done"
+                                if (authStatus.optString("state") == "done") {
+                                    accountStatus = withContext(Dispatchers.IO) {
+                                        RustEditionBridge.accountStatus(context)
+                                    }
+                                }
+                            }
+                        }
+                    ) {
+                        Text(if (authPolling) "Menunggu verifikasi…" else "Masuk dengan Microsoft")
+                    }
+                    if (authPolling) {
+                        TextButton(onClick = {
+                            scope.launch {
+                                withContext(Dispatchers.IO) { RustEditionBridge.cancelSignIn(context) }
+                                authPolling = false
+                                authStatus = JSONObject()
+                            }
+                        }) {
+                            Text("Batal")
+                        }
+                    }
+                    if (signedIn) {
+                        TextButton(onClick = {
+                            scope.launch {
+                                accountStatus = withContext(Dispatchers.IO) {
+                                    RustEditionBridge.signOut(context)
+                                }
+                                accountStatus = withContext(Dispatchers.IO) {
+                                    RustEditionBridge.accountStatus(context)
+                                }
+                            }
+                        }) {
+                            Text("Keluar")
+                        }
+                    }
                 }
             }
         }
