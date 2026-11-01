@@ -9,6 +9,10 @@
 
 **Zalith Launcher 2+** is a community-modified launcher for **Android devices** tailored for [Minecraft: Java Edition](https://www.minecraft.net/). It builds upon the foundation of [Zalith Launcher 2](https://github.com/ZalithLauncher/ZalithLauncher2), utilizing [PojavLauncher](https://github.com/PojavLauncherTeam/PojavLauncher/tree/v3_openjdk/app_pojavlauncher/src/main/jni) as its core launching engine with a modern UI built using **Jetpack Compose** and **Material Design 3**.
 
+## 🦀 Rust Edition (Horizon Android)
+
+ZaRust now has a separate native Rust game path alongside Java Edition. See [Rust Edition architecture, compatibility, storage separation, and build instructions](./RUST_EDITION.md). The initial combined Rust build targets arm64-v8a / Android 9+; the normal Java build remains independent.
+
 ## Some Statistics
 
 July 14, 2026:
