@@ -65,6 +65,27 @@ fun RustEditionSettingsScreen() {
     var progress by remember { mutableStateOf(JSONObject()) }
     var error by remember { mutableStateOf<String?>(null) }
 
+    val officialMods = listOf(
+        "fps_overlay" to "FPS Counter",
+        "keystrokes" to "Keystrokes",
+        "far_view" to "Far View",
+        "minimap" to "Minimap",
+        "zoom" to "Zoom",
+        "recipes" to "Recipes"
+    )
+    var modFlags by remember {
+        mutableStateOf(officialMods.associate { (id, _) ->
+            id to RustEditionBridge.isModEnabled(context, id)
+        })
+    }
+    var modError by remember { mutableStateOf<String?>(null) }
+
+    fun updateMod(id: String, enabled: Boolean) {
+        runCatching { RustEditionBridge.setModEnabled(context, id, enabled) }
+            .onSuccess { modFlags = modFlags + (id to enabled); modError = null }
+            .onFailure { modError = it.message ?: "Gagal mengubah mod Rust" }
+    }
+
     fun save(key: String, value: Any) {
         runCatching {
             val json = RustEditionBridge.readSettings(context)
@@ -223,6 +244,25 @@ fun RustEditionSettingsScreen() {
                     orientation = it
                     save("orientation", it)
                 }
+            }
+        }
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Mod bawaan Starling", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Mod resmi dikemas langsung bersama Rust Edition. Pengaturan ini mengubah daftar mod Horizon yang dibaca saat game dimulai; perubahan berlaku pada peluncuran berikutnya.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                officialMods.forEach { (id, label) ->
+                    RustSwitchRow(
+                        title = if (id == "far_view") "Far View (beban render lebih tinggi)" else label,
+                        checked = modFlags[id] == true,
+                        onChanged = { updateMod(id, it) }
+                    )
+                }
+                modError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
         }
 
