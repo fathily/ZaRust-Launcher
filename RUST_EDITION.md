@@ -3,7 +3,7 @@
 ZaRust Launcher contains two independent game launch paths in one Android application:
 
 - **Java Edition** remains the existing Zalith/Pojav-based launcher. Its Java runtimes, versions, mods, shader packs, worlds, and settings are not replaced by Rust Edition.
-- **Rust Edition** appears in ZaRust's Game → Versions list and starts the Horizon Minecraft client directly in a native game activity inside the same ZaRust APK. It does not install a second launcher app or show Horizon's launcher home during normal launches. First-run resource installation runs before the game starts. Rust has its own account/profile settings, game resources, worlds, native mods, and cache.
+- **Rust Edition** appears in ZaRust's Game → Versions list. Its resource installer, progress UI, and engine settings live in ZaRust's Jetpack Compose screens. Tapping Play starts only the native Minecraft game surface in a private process of the same `com.zarust.launcher` application; it does not install or open a second launcher app, and Horizon's Play/Mods/Packs/Shaders/Settings launcher pages are bypassed. Rust data, profiles, worlds, native mods, and cache stay in the dedicated `rust-edition/` directory.
 
 ## Engine and compatibility
 
@@ -13,7 +13,7 @@ The initial integrated build targets **arm64-v8a** and **Android 9 / API 28 or n
 
 Horizon uses native Rust and does not use the Java Edition JRE. Its native `.hmod` mods are a separate format. Fabric, Forge, NeoForge, Quilt, Java `.jar` mods, Iris, and Sodium do not become compatible by copying them into Rust Edition.
 
-## Storage isolation
+## ZaRust UI and settings\n\n`Settings → Rust Edition` stores Horizon's native configuration in the same app-private `rust-edition/android-launcher.json` file read by the engine. The Compose screen owns the resource installation button and progress display, graphics API, render scale, fullscreen/aspect, input mode, orientation, refresh-rate/performance hints, profile selection, offline player name, and optional auto-join server. The Java Edition settings and JVM configuration are left untouched.\n\nThe NativeActivity is only the Vulkan/OpenGL game surface required by Horizon's Android/Winit runtime; it runs in the `:rustgame` process so closing the game returns to the still-running ZaRust launcher process.\n\n## Storage isolation
 
 The integration patches Horizon's Android data and cache roots into the app-private `rust-edition/` directory. The Rust game files therefore do not share Java Edition's `versions/`, `mods/`, `saves/`, or runtime directories.
 
