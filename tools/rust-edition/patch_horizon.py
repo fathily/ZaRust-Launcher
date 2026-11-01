@@ -83,7 +83,7 @@ replace_once(
 # It runs before NativeActivity starts, so the user never sees Horizon's installer UI.
 replace_once(
     main,
-    "    std::process::exit(0);\\n}",
+    "    std::process::exit(0);\n}",
     """    std::process::exit(0);
 }
 
