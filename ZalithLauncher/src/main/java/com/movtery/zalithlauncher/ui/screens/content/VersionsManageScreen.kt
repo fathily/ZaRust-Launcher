@@ -531,6 +531,7 @@ private fun VersionsLayout(
     val context = LocalContext.current
     val rustEditionAvailable = BuildConfig.RUST_EDITION_ENABLED &&
         Build.VERSION.SDK_INT >= 28 && Build.SUPPORTED_ABIS.contains("arm64-v8a")
+    val showRustEdition = rustEditionAvailable && versionCategory == VersionCategory.ALL
     val surfaceYOffset by swapAnimateDpAsState(
         targetValue = (-40).dp,
         swapIn = isVisible
@@ -605,7 +606,7 @@ private fun VersionsLayout(
                     }
                 }
 
-                if (versions.isNotEmpty() || rustEditionAvailable) {
+                if (versions.isNotEmpty() || showRustEdition) {
                     val scrollState = rememberLazyListState()
                     LazyColumn(
                         modifier = Modifier
@@ -619,7 +620,7 @@ private fun VersionsLayout(
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                         state = scrollState,
                     ) {
-                        if (rustEditionAvailable) {
+                        if (showRustEdition) {
                             item(key = "zarust-rust-edition") {
                                 Surface(
                                     modifier = Modifier
