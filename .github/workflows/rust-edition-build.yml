@@ -127,7 +127,7 @@ jobs:
             test -s "$source"
             cp "$source" "$mods/$id.hmod"
           done
-          printf '%s\\n' '1d53294cf27dbe676197fdd826669d6b7030d2e1' > "$mods/version.txt"
+          printf '%s\n' '1d53294cf27dbe676197fdd826669d6b7030d2e1' > "$mods/version.txt"
           python - <<'PY'
           from pathlib import Path
           files = sorted(Path("ZalithLauncher/src/main/assets/zarust-official-mods").glob("*.hmod"))
