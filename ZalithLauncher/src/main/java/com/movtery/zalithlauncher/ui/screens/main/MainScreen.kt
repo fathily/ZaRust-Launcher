@@ -541,6 +541,8 @@ private fun NavigationUI(
     modpackImportViewModel: ModpackImportViewModel,
     submitError: (ErrorViewModel.ThrowableMessage) -> Unit
 ) {
+    // NavigationUI is a separate composable from MainScreen; resolve its own Activity context.
+    val appContext = androidx.compose.ui.platform.LocalContext.current
     val backStack = screenBackStackModel.mainScreen.backStack
     val currentKey = backStack.lastOrNull()
 
