@@ -637,14 +637,14 @@ private fun VersionsLayout(
                                                 val isMicrosoft = account?.accountType == AccountType.MICROSOFT.tag
                                                 val syncResult = runCatching {
                                                     dev.horizon.android.RustEditionBridge.syncZalithAccount(
-                                                        context = context,
-                                                        uuid = account?.profileId.orEmpty(),
-                                                        name = account?.username ?: "Player",
-                                                        accessToken = if (isMicrosoft) account?.accessToken.orEmpty() else "",
-                                                        refreshToken = if (isMicrosoft) account?.refreshToken.orEmpty() else "",
-                                                        expiresAt = if (isMicrosoft) account?.expiresAt ?: 0L else 0L,
-                                                        xuid = if (isMicrosoft) account?.xUid.orEmpty() else "",
-                                                        microsoft = isMicrosoft
+                                                        context,
+                                                        account?.profileId.orEmpty(),
+                                                        account?.username ?: "Player",
+                                                        if (isMicrosoft) account?.accessToken.orEmpty() else "",
+                                                        if (isMicrosoft) account?.refreshToken.orEmpty() else "",
+                                                        if (isMicrosoft) account?.expiresAt ?: 0L else 0L,
+                                                        if (isMicrosoft) account?.xUid.orEmpty() else "",
+                                                        isMicrosoft
                                                     )
                                                 }.getOrElse { it.message ?: "Gagal menyinkronkan akun ZaRust" }
                                                 if (syncResult != "ok") {
