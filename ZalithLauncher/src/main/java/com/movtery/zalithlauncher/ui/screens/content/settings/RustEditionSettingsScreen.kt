@@ -44,6 +44,8 @@ fun RustEditionSettingsScreen() {
 
     var renderer by remember { mutableStateOf(initial.optString("renderer", "vulkan-compatibility")) }
     var orientation by remember { mutableStateOf(initial.optString("orientation", "landscape")) }
+    var inputMode by remember { mutableStateOf(initial.optString("input_host", "auto")) }
+    var profile by remember { mutableStateOf(initial.optInt("profile", 0).coerceIn(0, 4).toString()) }
     var aspect by remember { mutableStateOf(initial.optString("aspect", "native")) }
     var renderScale by remember { mutableStateOf(initial.optInt("render_scale", 100).toFloat().coerceIn(25f, 100f)) }
     var immersive by remember { mutableStateOf(initial.optBoolean("immersive", true)) }
@@ -168,6 +170,22 @@ fun RustEditionSettingsScreen() {
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Kontrol & profil", style = MaterialTheme.typography.titleMedium)
+                RustOptionRow(
+                    "Metode input", inputMode,
+                    listOf("Otomatis" to "auto", "Touch" to "touch",
+                        "Keyboard & mouse" to "keyboard-mouse", "Controller" to "controller")
+                ) {
+                    inputMode = it
+                    save("input_host", it)
+                }
+                RustOptionRow(
+                    "Profil Rust", profile,
+                    (0..4).map { "Profile " + it to it.toString() }
+                ) {
+                    profile = it
+                    save("profile", it.toInt())
+                }
                 Text("Performa", style = MaterialTheme.typography.titleMedium)
                 RustSwitchRow("Performance hints Android", performanceHints) {
                     performanceHints = it
