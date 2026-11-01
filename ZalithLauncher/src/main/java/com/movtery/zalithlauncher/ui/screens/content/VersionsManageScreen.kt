@@ -21,6 +21,7 @@ package com.movtery.zalithlauncher.ui.screens.content
 import android.content.Context
 import android.os.Environment
 import android.os.Build
+import android.widget.Toast
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -625,12 +626,23 @@ private fun VersionsLayout(
                                         .fillMaxWidth()
                                         .padding(vertical = 6.dp)
                                         .clickable {
-                                            context.startActivity(
-                                                android.content.Intent(
+                                            val installed = runCatching {
+                                                dev.horizon.android.RustEditionBridge.isReady(context)
+                                            }.getOrDefault(false)
+                                            if (installed) {
+                                                context.startActivity(
+                                                    android.content.Intent(
+                                                        context,
+                                                        dev.horizon.android.HorizonActivity::class.java
+                                                    )
+                                                )
+                                            } else {
+                                                Toast.makeText(
                                                     context,
-                                                    dev.horizon.android.HorizonActivity::class.java
-                                                ).putExtra("launch_from_zarust", true)
-                                            )
+                                                    "Install resource dari Settings → Rust Edition terlebih dahulu.",
+                                                    Toast.LENGTH_LONG
+                                                ).show()
+                                            }
                                         },
                                     shape = MaterialTheme.shapes.large,
                                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -644,7 +656,7 @@ private fun VersionsLayout(
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                         Text(
-                                            "Tap to launch Rust Edition",
+                                            "Play · Atur engine di Settings → Rust Edition",
                                             style = MaterialTheme.typography.labelMedium
                                         )
                                     }
