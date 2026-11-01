@@ -628,61 +628,10 @@ private fun VersionsLayout(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(vertical = 6.dp)
-                                        .clickable {
-                                            val installed = runCatching {
-                                                dev.horizon.android.RustEditionBridge.isReady(context)
-                                            }.getOrDefault(false)
-                                            if (!installed) {
-                                                Toast.makeText(
-                                                    context,
-                                                    "Install resource dari Settings → Rust Edition terlebih dahulu.",
-                                                    Toast.LENGTH_LONG
-                                                ).show()
-                                                return@clickable
-                                            }
-
-                                            val account = AccountsManager.currentAccountFlow.value
-                                            if (account == null || account.username.isBlank()) {
-                                                Toast.makeText(
-                                                    context,
-                                                    "Pilih akun terlebih dahulu dari menu Accounts ZaRust.",
-                                                    Toast.LENGTH_LONG
-                                                ).show()
-                                                return@clickable
-                                            }
-
-                                            val isMicrosoft = account.accountType == AccountType.MICROSOFT.tag
-                                            val isLocal = account.accountType == AccountType.LOCAL.tag
-                                            if (!isMicrosoft && !isLocal) {
-                                                Toast.makeText(
-                                                    context,
-                                                    "Akun auth-server ini belum didukung Rust Edition. Gunakan akun Microsoft atau Local dari ZaRust.",
-                                                    Toast.LENGTH_LONG
-                                                ).show()
-                                                return@clickable
-                                            }
-
-                                            val syncResult = runCatching {
-                                                dev.horizon.android.RustEditionBridge.syncZalithAccount(
-                                                    context,
-                                                    account.profileId.orEmpty(),
-                                                    account.username,
-                                                    if (isMicrosoft) account.accessToken.orEmpty() else "",
-                                                    if (isMicrosoft) account.refreshToken.orEmpty() else "",
-                                                    if (isMicrosoft) account.expiresAt else 0L,
-                                                    if (isMicrosoft) account.xUid.orEmpty() else "",
-                                                    isMicrosoft
-                                                )
-                                            }.getOrElse { it.message ?: "Gagal menyinkronkan akun ZaRust" }
-                                            if (syncResult != "ok") {
-                                                Toast.makeText(context, syncResult, Toast.LENGTH_LONG).show()
-                                                return@clickable
-                                            }
-                                            context.startActivity(
-                                                android.content.Intent(
-                                                    context,
-                                                    dev.horizon.android.HorizonActivity::class.java
-                                                )
+.clickable {
+                                            dev.horizon.android.RustEditionBridge.launch(
+                                                context,
+                                                AccountsManager.currentAccountFlow.value
                                             )
                                         },
                                     shape = MaterialTheme.shapes.large,
@@ -690,14 +639,14 @@ private fun VersionsLayout(
                                     contentColor = MaterialTheme.colorScheme.onSurface
                                 ) {
                                     Column(modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp)) {
-                                        Text("Rust Edition · Horizon")
+                                        Text("Rust Edition · Starling")
                                         Text(
-                                            "Minecraft Java 26.3 · Native Rust engine",
+                                            "Starling Rust Engine · Android Native",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                         Text(
-                                            "Play · Atur engine di Settings → Rust Edition",
+                                            "Play · Atur game di Settings → Rust Edition",
                                             style = MaterialTheme.typography.labelMedium
                                         )
                                     }
