@@ -30,6 +30,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import dev.horizon.android.RustEditionBridge
+import com.movtery.zalithlauncher.game.account.AccountsManager
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -41,6 +43,7 @@ fun RustEditionSettingsScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val initial = remember { RustEditionBridge.readSettings(context) }
+    val activeAccount by AccountsManager.currentAccountFlow.collectAsStateWithLifecycle()
 
     var renderer by remember { mutableStateOf(initial.optString("renderer", "vulkan-compatibility")) }
     var orientation by remember { mutableStateOf(initial.optString("orientation", "landscape")) }
@@ -54,7 +57,6 @@ fun RustEditionSettingsScreen() {
     var gpuProfile by remember { mutableStateOf(initial.optBoolean("gpu_profile", false)) }
     var recordPerformance by remember { mutableStateOf(initial.optBoolean("record_performance", false)) }
     var displayHz by remember { mutableStateOf(initial.optInt("display_hz", 0).toString()) }
-    var playerName by remember { mutableStateOf(initial.optString("name", "")) }
     var server by remember { mutableStateOf(initial.optString("server", "")) }
 
     var ready by remember { mutableStateOf(false) }
@@ -228,11 +230,12 @@ fun RustEditionSettingsScreen() {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Akun mengikuti ZaRust", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "Rust Edition otomatis memakai akun aktif dari menu Accounts ZaRust saat game dijalankan. Tidak perlu login Microsoft lagi di Horizon.",
+                    activeAccount?.let { "Akun aktif: ${it.username} · ${it.accountType ?: "Local"}" }
+                        ?: "Belum ada akun yang dipilih di ZaRust.",
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Text(
-                    "Untuk mengganti akun, buka Accounts di ZaRust. Rust Edition akan menyinkronkan akun yang dipilih berikutnya.",
+                    "Rust Edition menggunakan akun dan nama pemain yang sama dengan menu Accounts ZaRust. Ganti akun dari sana; tidak ada akun atau nama Rust kedua.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -242,13 +245,6 @@ fun RustEditionSettingsScreen() {
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("Profil & Multiplayer", style = MaterialTheme.typography.titleMedium)
-                OutlinedTextField(
-                    value = playerName,
-                    onValueChange = { playerName = it; save("name", it) },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Nama offline") },
-                    singleLine = true
-                )
                 OutlinedTextField(
                     value = server,
                     onValueChange = { server = it; save("server", it) },
