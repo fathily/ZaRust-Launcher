@@ -112,7 +112,7 @@ jobs:
         working-directory: ZaRust
         run: |
           chmod +x gradlew
-          ./gradlew ZalithLauncher:assemble\${{ env.BUILD_VARIANT }} -Darch=arm64 -PrustEditionEnabled=true
+          ./gradlew ZalithLauncher:assemble${{ env.BUILD_VARIANT }} -Darch=arm64 -PrustEditionEnabled=true
 
       - name: Verify package identity and embedded Starling runtime
         working-directory: ZaRust
