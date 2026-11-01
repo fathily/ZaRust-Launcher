@@ -20,7 +20,9 @@ package com.movtery.zalithlauncher.ui.screens.content
 
 import android.content.Context
 import android.os.Environment
+import android.os.Build
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,6 +41,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.material3.scrollbar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
@@ -61,6 +65,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.movtery.zalithlauncher.R
+import com.movtery.zalithlauncher.BuildConfig
 import com.movtery.zalithlauncher.game.path.GamePathManager
 import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.game.version.installed.VersionComparator
@@ -523,6 +528,8 @@ private fun VersionsLayout(
     onInstall: () -> Unit,
 ) {
     val context = LocalContext.current
+    val rustEditionAvailable = BuildConfig.RUST_EDITION_ENABLED &&
+        Build.VERSION.SDK_INT >= 28 && Build.SUPPORTED_ABIS.contains("arm64-v8a")
     val surfaceYOffset by swapAnimateDpAsState(
         targetValue = (-40).dp,
         swapIn = isVisible
@@ -597,7 +604,7 @@ private fun VersionsLayout(
                     }
                 }
 
-                if (versions.isNotEmpty()) {
+                if (versions.isNotEmpty() || rustEditionAvailable) {
                     val scrollState = rememberLazyListState()
                     LazyColumn(
                         modifier = Modifier
@@ -611,6 +618,39 @@ private fun VersionsLayout(
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                         state = scrollState,
                     ) {
+                        if (rustEditionAvailable) {
+                            item(key = "zarust-rust-edition") {
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 6.dp)
+                                        .clickable {
+                                            context.startActivity(
+                                                android.content.Intent(
+                                                    context,
+                                                    dev.horizon.android.HorizonActivity::class.java
+                                                ).putExtra("launch_from_zarust", true)
+                                            )
+                                        },
+                                    shape = MaterialTheme.shapes.large,
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    contentColor = MaterialTheme.colorScheme.onSurface
+                                ) {
+                                    Column(modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp)) {
+                                        Text("Rust Edition · Horizon")
+                                        Text(
+                                            "Minecraft Java 26.3 · Native Rust engine",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            "Tap to launch Rust Edition",
+                                            style = MaterialTheme.typography.labelMedium
+                                        )
+                                    }
+                                }
+                            }
+                        }
                         items(versions, key = { it.toString() }) { version ->
                             val callbacks = remember(version) {
                                 VersionItemCallbacks(
