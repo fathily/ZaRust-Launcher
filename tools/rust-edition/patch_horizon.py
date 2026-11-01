@@ -172,8 +172,14 @@ extern "system" fn Java_dev_horizon_android_RustEditionBridge_nativeSyncZalithAc
             accounts.add(crate::account::store(), account, &secrets)?;
             accounts.save()?;
         } else {
+            let name = name.trim().to_owned();
+            if !crate::account::valid_offline_name(&name) {
+                return Err("Nama akun Local ZaRust harus 3-16 karakter (huruf, angka, atau garis bawah) untuk Rust Edition.".to_string());
+            }
             accounts.selected = None;
-            accounts.offline_selected = if name.trim().is_empty() { None } else { Some(name) };
+            accounts.offline.retain(|saved| !saved.eq_ignore_ascii_case(&name));
+            accounts.offline.push(name.clone());
+            accounts.offline_selected = Some(name);
             accounts.save()?;
         }
         Ok::<_, String>("ok".to_string())
