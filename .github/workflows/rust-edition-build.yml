@@ -75,13 +75,30 @@ jobs:
         with:
           targets: aarch64-linux-android, wasm32-unknown-unknown
 
-      - name: Ensure Rust compilation targets
+      - name: Ensure Rust compilation targets for pinned toolchains
         run: |
           set -euo pipefail
-          rustup target add --toolchain 1.97.0 aarch64-linux-android wasm32-unknown-unknown
-          rustup target list --installed --toolchain 1.97.0 | tee /tmp/rust-targets.txt
-          grep -Fxq "aarch64-linux-android" /tmp/rust-targets.txt
-          grep -Fxq "wasm32-unknown-unknown" /tmp/rust-targets.txt
+          # Starling's mod compiler uses the workflow toolchain (1.97.0).
+          rustup target add --toolchain 1.97.0 wasm32-unknown-unknown
+          # Horizon's checked-in rust-toolchain.toml pins its native engine to 1.95.0.
+          rustup toolchain install 1.95.0 --profile minimal --no-self-update
+          rustup target add --toolchain 1.95.0 aarch64-linux-android
+
+          echo "Starling toolchain:"
+          (cd ZaRust/StarlingMods && rustc --version)
+          echo "Horizon toolchain and Android std:"
+          (
+            cd ZaRust/HorizonEngine
+            rustc --version
+            rustc --print target-libdir --target aarch64-linux-android | tee /tmp/horizon-target-libdir.txt
+            test -d "$(cat /tmp/horizon-target-libdir.txt)"
+            rustc --print sysroot
+          )
+
+          rustup target list --installed --toolchain 1.97.0 | tee /tmp/rust-1.97-targets.txt
+          grep -Fxq "wasm32-unknown-unknown" /tmp/rust-1.97-targets.txt
+          rustup target list --installed --toolchain 1.95.0 | tee /tmp/rust-1.95-targets.txt
+          grep -Fxq "aarch64-linux-android" /tmp/rust-1.95-targets.txt
 
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
