@@ -11,7 +11,7 @@
 
 ## 🦀 Rust Edition (Horizon Android)
 
-ZaRust adds Horizon's native Rust engine as an integrated game edition: install, progress, and engine settings are managed by ZaRust's own UI, while the native activity is used only as the game surface. Java Edition remains independent. See [Rust Edition architecture, compatibility, storage separation, and build instructions](./RUST_EDITION.md). The initial Rust build targets arm64-v8a / Android 9+.
+ZaRust adds Horizon's native Rust engine as an integrated game edition, with the active ZaRust account shared automatically and six optional official Starling `.hmod` mods managed from ZaRust Settings. The native activity is used only as the game surface; no separate Starling/Horizon launcher app is installed. Java Edition remains independent. See [Rust Edition architecture, compatibility, accounts, mods, storage separation, and build instructions](./RUST_EDITION.md). The initial Rust build targets arm64-v8a / Android 9+.
 
 ## Some Statistics
 
