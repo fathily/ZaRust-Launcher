@@ -1,8 +1,10 @@
 package com.movtery.zalithlauncher.ui.screens.content.settings
 
+import android.provider.OpenableColumns
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -11,337 +13,181 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import dev.horizon.android.RustEditionBridge
-import com.movtery.zalithlauncher.game.account.AccountsManager
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.json.JSONObject
+import com.movtery.zalithlauncher.game.account.AccountsManager
+import dev.horizon.android.RustEditionBridge
+import java.io.File
+import java.io.FileOutputStream
 
 @Composable
 fun RustEditionSettingsScreen() {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val initial = remember { RustEditionBridge.readSettings(context) }
-    val activeAccount by AccountsManager.currentAccountFlow.collectAsStateWithLifecycle()
+    val account by AccountsManager.currentAccountFlow.collectAsStateWithLifecycle()
+    var inputMode by remember { mutableStateOf(RustEditionBridge.getInputMode(context)) }
+    var pickerMessage by remember { mutableStateOf<String?>(null) }
+    var expanded by remember { mutableStateOf(false) }
 
-    var renderer by remember { mutableStateOf(initial.optString("renderer", "vulkan-compatibility")) }
-    var orientation by remember { mutableStateOf(initial.optString("orientation", "landscape")) }
-    var inputMode by remember { mutableStateOf(initial.optString("input_host", "auto")) }
-    var profile by remember { mutableStateOf(initial.optInt("profile", 0).coerceIn(0, 4).toString()) }
-    var aspect by remember { mutableStateOf(initial.optString("aspect", "native")) }
-    var renderScale by remember { mutableStateOf(initial.optInt("render_scale", 100).toFloat().coerceIn(25f, 100f)) }
-    var immersive by remember { mutableStateOf(initial.optBoolean("immersive", true)) }
-    var avoidCutout by remember { mutableStateOf(initial.optBoolean("avoid_cutout", false)) }
-    var performanceHints by remember { mutableStateOf(initial.optBoolean("performance_hints", false)) }
-    var gpuProfile by remember { mutableStateOf(initial.optBoolean("gpu_profile", false)) }
-    var recordPerformance by remember { mutableStateOf(initial.optBoolean("record_performance", false)) }
-    var displayHz by remember { mutableStateOf(initial.optInt("display_hz", 0).toString()) }
-    var server by remember { mutableStateOf(initial.optString("server", "")) }
-
-    var ready by remember { mutableStateOf(false) }
-    var checking by remember { mutableStateOf(true) }
-    var installing by remember { mutableStateOf(false) }
-    var progress by remember { mutableStateOf(JSONObject()) }
-    var error by remember { mutableStateOf<String?>(null) }
-
-    val officialMods = listOf(
-        "fps_overlay" to "FPS Counter",
-        "keystrokes" to "Keystrokes",
-        "far_view" to "Far View",
-        "minimap" to "Minimap",
-        "zoom" to "Zoom",
-        "recipes" to "Recipes"
-    )
-    var modFlags by remember {
-        mutableStateOf(officialMods.associate { (id, _) ->
-            id to RustEditionBridge.isModEnabled(context, id)
-        })
-    }
-    var modError by remember { mutableStateOf<String?>(null) }
-
-    fun updateMod(id: String, enabled: Boolean) {
-        scope.launch {
-            val result = runCatching {
-                withContext(Dispatchers.IO) {
-                    RustEditionBridge.setModEnabled(context, id, enabled)
+    fun copySelected(uri: android.net.Uri?, destination: File, accepted: Set<String>) {
+        if (uri == null) return
+        runCatching {
+            val name = context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (index >= 0 && cursor.moveToFirst()) cursor.getString(index) else null
+            } ?: "imported-file"
+            val extension = name.substringAfterLast('.', "").lowercase()
+            require(extension in accepted) {
+                "Format tidak didukung. Gunakan: " + accepted.joinToString(", ")
+            }
+            require(destination.isDirectory || destination.mkdirs()) {
+                "Tidak bisa membuat folder ${destination.absolutePath}"
+            }
+            val target = File(destination, name)
+            val temporary = File(destination, name + ".partial")
+            context.contentResolver.openInputStream(uri).use { input ->
+                requireNotNull(input) { "File tidak bisa dibaca" }
+                FileOutputStream(temporary).use { output ->
+                    input.copyTo(output)
+                    output.fd.sync()
                 }
             }
-            result.onSuccess {
-                modFlags = modFlags + (id to enabled)
-                modError = null
-            }.onFailure {
-                modError = it.message ?: "Gagal mengubah mod Rust"
+            if (target.exists() && !target.delete()) {
+                throw IllegalStateException("Tidak bisa mengganti file lama: $name")
             }
+            check(temporary.renameTo(target)) { "Gagal menyimpan $name" }
+            pickerMessage = "Berhasil memasang $name"
+        }.onFailure {
+            pickerMessage = it.message ?: "Gagal mengimpor file"
         }
     }
 
-    fun save(key: String, value: Any) {
-        runCatching {
-            val json = RustEditionBridge.readSettings(context)
-            json.put(key, value)
-            RustEditionBridge.writeSettings(context, json)
-        }.onFailure { error = it.message ?: "Gagal menyimpan pengaturan Rust" }
+    val hmodPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        copySelected(uri, RustEditionBridge.modsDirectory(context), setOf("hmod"))
+    }
+    val shaderPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        copySelected(uri, RustEditionBridge.shaderPacksDirectory(context), setOf("hshader", "zip"))
     }
 
-    LaunchedEffect(Unit) {
-        ready = runCatching { withContext(Dispatchers.IO) { RustEditionBridge.isReady(context) } }.getOrDefault(false)
-        checking = false
-    }
-    LaunchedEffect(installing) {
-        while (installing) {
-            progress = RustEditionBridge.readProgress(context)
-            delay(350)
-        }
-    }
+    val gameHome = RustEditionBridge.gameHome(context)
+    val modsDir = RustEditionBridge.modsDirectory(context)
+    val shadersDir = RustEditionBridge.shaderPacksDirectory(context)
+    val nativeDir = RustEditionBridge.nativeModsDirectory(context)
+
     Column(
-        modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("Rust Edition", style = MaterialTheme.typography.headlineSmall)
+        Text("Rust Edition · Starling", style = MaterialTheme.typography.headlineSmall)
         Text(
-            "Pengaturan engine Horizon khusus Rust. Tidak mengubah konfigurasi Java Edition.",
+            "Starling berjalan sebagai engine Rust di dalam ZaRust. Java Edition, akun, dan pengaturan launcher tetap memakai sistem ZaRust yang sudah ada.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         Card(modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Minecraft Java 26.3", style = MaterialTheme.typography.titleMedium)
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Akun ZaRust", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    when {
-                        checking -> "Memeriksa resource…"
-                        installing -> progress.optString("stage", "Menyiapkan resource…")
-                        ready -> "Resource siap. Rust Edition bisa dimainkan dari Game → Versi."
-                        else -> "Resource belum terpasang. Instalasi dijalankan dari UI ZaRust."
-                    }
+                    account?.let { "Akun aktif: ${it.username} · ${it.accountType ?: "Local"}" }
+                        ?: "Belum ada akun dipilih. Starling akan berjalan sebagai pemain offline."
                 )
-                if (installing) {
-                    val done = progress.optLong("done", 0).coerceAtLeast(0)
-                    val total = progress.optLong("total", 0).coerceAtLeast(0)
-                    val fraction = if (total > 0) (done.toFloat() / total).coerceIn(0f, 1f) else 0f
-                    LinearProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth())
-                    Text(
-                        if (total > 0) formatMiB(done) + " / " + formatMiB(total) + " MiB" else "Menyiapkan file…",
-                        style = MaterialTheme.typography.labelMedium
-                    )
+                Text(
+                    "Akun aktif diteruskan ke Starling. Token Microsoft disegel menggunakan Android Keystore; tidak ada layar login kedua.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Touch Control", style = MaterialTheme.typography.titleMedium)
+                Text("Pilih preferensi kontrol. Mode kontrol perlu diuji pada perangkat untuk memastikan tidak ada input ganda.")
+                TextButton(onClick = { expanded = true }) {
+                    Text(if (inputMode == "zalith") "Preferensi: Zalith" else "Preferensi: Starling")
                 }
-                Button(
-                    enabled = !checking && !installing,
-                    onClick = {
-                        scope.launch {
-                            installing = true
-                            error = null
-                            val result = runCatching {
-                                withContext(Dispatchers.IO) { RustEditionBridge.install(context) }
-                            }.getOrElse { it.message ?: "Gagal memasang resource Minecraft" }
-                            installing = false
-                            ready = runCatching {
-                                withContext(Dispatchers.IO) { RustEditionBridge.isReady(context) }
-                            }.getOrDefault(false)
-                            if (result.isNotBlank()) error = result
+                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Zalith") },
+                        onClick = {
+                            inputMode = "zalith"
+                            RustEditionBridge.setInputMode(context, inputMode)
+                            expanded = false
                         }
-                    }
-                ) {
-                    Text(if (ready) "Periksa / perbaiki resource" else "Install Minecraft 26.3")
-                }
-                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            }
-        }
-
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Perubahan pengaturan diterapkan saat Rust Edition diluncurkan berikutnya.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("Grafis", style = MaterialTheme.typography.titleMedium)
-                RustOptionRow(
-                    "Rendering API", renderer,
-                    listOf("Vulkan Compatibility" to "vulkan-compatibility", "Vulkan" to "vulkan", "OpenGL ES (eksperimental)" to "open-gl")
-                ) {
-                    renderer = it
-                    save("renderer", it)
-                }
-                Text("Resolusi render: " + renderScale.toInt() + "%")
-                Slider(
-                    value = renderScale,
-                    onValueChange = { renderScale = it },
-                    valueRange = 25f..100f,
-                    steps = 14,
-                    onValueChangeFinished = { save("render_scale", renderScale.toInt()) }
-                )
-                RustSwitchRow("Fullscreen imersif", immersive) {
-                    immersive = it
-                    save("immersive", it)
-                }
-                RustSwitchRow("Hindari camera cutout", avoidCutout) {
-                    avoidCutout = it
-                    save("avoid_cutout", it)
-                }
-                RustOptionRow(
-                    "Aspect ratio", aspect,
-                    listOf("Native" to "native", "16:9" to "wide", "4:3" to "classic", "1:1" to "square")
-                ) {
-                    aspect = it
-                    save("aspect", it)
-                }
-            }
-        }
-
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Kontrol & profil", style = MaterialTheme.typography.titleMedium)
-                RustOptionRow(
-                    "Metode input", inputMode,
-                    listOf("Otomatis" to "auto", "Touch" to "touch",
-                        "Keyboard & mouse" to "keyboard-mouse", "Controller" to "controller")
-                ) {
-                    inputMode = it
-                    save("input_host", it)
-                }
-                RustOptionRow(
-                    "Profil Rust", profile,
-                    (0..4).map { "Profile " + it to it.toString() }
-                ) {
-                    profile = it
-                    save("profile", it.toInt())
-                }
-                Text("Performa", style = MaterialTheme.typography.titleMedium)
-                RustSwitchRow("Performance hints Android", performanceHints) {
-                    performanceHints = it
-                    save("performance_hints", it)
-                }
-                RustSwitchRow("GPU profiling", gpuProfile) {
-                    gpuProfile = it
-                    save("gpu_profile", it)
-                }
-                RustSwitchRow("Performance recording", recordPerformance) {
-                    recordPerformance = it
-                    save("record_performance", it)
-                }
-                RustOptionRow(
-                    "Refresh rate", displayHz,
-                    listOf("System default" to "0", "30 Hz" to "30", "60 Hz" to "60", "90 Hz" to "90",
-                        "120 Hz" to "120", "144 Hz" to "144", "165 Hz" to "165")
-                ) {
-                    displayHz = it
-                    save("display_hz", it.toInt())
-                }
-                RustOptionRow(
-                    "Orientasi game", orientation,
-                    listOf("Landscape" to "landscape", "Portrait" to "portrait",
-                        "Reverse landscape" to "reverse-landscape", "Reverse portrait" to "reverse-portrait",
-                        "Otomatis" to "auto")
-                ) {
-                    orientation = it
-                    save("orientation", it)
-                }
-            }
-        }
-
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Mod bawaan Starling", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    "Mod resmi dikemas langsung bersama Rust Edition. Pengaturan ini mengubah daftar mod Horizon yang dibaca saat game dimulai; perubahan berlaku pada peluncuran berikutnya.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                officialMods.forEach { (id, label) ->
-                    RustSwitchRow(
-                        title = if (id == "far_view") "Far View (beban render lebih tinggi)" else label,
-                        checked = modFlags[id] == true,
-                        onChanged = { updateMod(id, it) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Starling") },
+                        onClick = {
+                            inputMode = "starling"
+                            RustEditionBridge.setInputMode(context, inputMode)
+                            expanded = false
+                        }
                     )
                 }
-                modError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
         }
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Akun mengikuti ZaRust", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    activeAccount?.let { "Akun aktif: ${it.username} · ${it.accountType ?: "Local"}" }
-                        ?: "Belum ada akun yang dipilih di ZaRust.",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Text(
-                    "Rust Edition menggunakan akun dan nama pemain yang sama dengan menu Accounts ZaRust. Ganti akun dari sana; tidak ada akun atau nama Rust kedua.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Text("HMOD · Mods", style = MaterialTheme.typography.titleMedium)
+                Text("Impor mod .hmod ke folder mod Starling. Daftar mod, status aktif/nonaktif dan halaman konfigurasi dibaca engine dari folder ini.")
+                Text(modsDir.absolutePath, style = MaterialTheme.typography.bodySmall)
+                Button(onClick = { hmodPicker.launch(arrayOf("*/*")) }) {
+                    Text("Impor HMOD")
+                }
             }
         }
 
         Card(modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Profil & Multiplayer", style = MaterialTheme.typography.titleMedium)
-                OutlinedTextField(
-                    value = server,
-                    onValueChange = { server = it; save("server", it) },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Server otomatis (opsional)") },
-                    singleLine = true
-                )
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("HShader · Shader Packs", style = MaterialTheme.typography.titleMedium)
+                Text("Impor .hshader atau shader pack ZIP. Pengaturan shader lanjutan dan pilihan shader dijalankan melalui menu video Starling.")
+                Text(shadersDir.absolutePath, style = MaterialTheme.typography.bodySmall)
+                Button(onClick = { shaderPicker.launch(arrayOf("*/*")) }) {
+                    Text("Impor HShader / ZIP")
+                }
             }
         }
-    }
-}
 
-@Composable
-private fun RustSwitchRow(title: String, checked: Boolean, onChanged: (Boolean) -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(title, modifier = Modifier.weight(1f))
-        Switch(checked = checked, onCheckedChange = onChanged)
-    }
-}
-
-@Composable
-private fun RustOptionRow(
-    title: String,
-    selected: String,
-    options: List<Pair<String, String>>,
-    onSelected: (String) -> Unit
-) {
-    var expanded by remember(title) { mutableStateOf(false) }
-    Column {
-        Text(title, style = MaterialTheme.typography.labelLarge)
-        TextButton(onClick = { expanded = true }) {
-            Text(options.firstOrNull { it.second == selected }?.first ?: selected)
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            options.forEach { (label, value) ->
-                DropdownMenuItem(text = { Text(label) }, onClick = {
-                    expanded = false
-                    onSelected(value)
-                })
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Native Mods", style = MaterialTheme.typography.titleMedium)
+                Text("Starling menyimpan native mod sebagai library .so dengan metadata/build di folder native. Builder dan pemilih build tersedia melalui menu Native Mods di dalam game.")
+                Text(nativeDir.absolutePath, style = MaterialTheme.typography.bodySmall)
+                Text("Catatan kompatibilitas: source Starling yang dipin tidak menyediakan ekstensi .hnmod; format native build upstream adalah .so + metadata.")
             }
         }
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Folder Game", style = MaterialTheme.typography.titleMedium)
+                Text(gameHome.absolutePath, style = MaterialTheme.typography.bodySmall)
+                Text("Saves, resource packs, shader packs, dan mods disimpan di folder game Starling. File game resmi akan diverifikasi dan diunduh oleh engine.")
+            }
+        }
+
+        pickerMessage?.let {
+            Text(
+                it,
+                color = if (it.startsWith("Berhasil")) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.error
+            )
+        }
     }
 }
-
-private fun formatMiB(bytes: Long): String =
-    String.format(java.util.Locale.ROOT, "%.1f", bytes / 1048576.0)
