@@ -60,7 +60,7 @@ replace_once(
 replace_once(
     launcher,
     "        if let Err(error) = self.open(events) {\n            self.fail(error);\n            events.exit();\n        }\n    }\n    fn suspended",
-    "        if let Err(error) = self.open(events) {\n            self.fail(error);\n            events.exit();\n        } else if self.auto_launch_pending {\n            if let Err(error) = self.action(events) {\n                self.fail(error);\n            }\n        }\n    }\n    fn suspended",
+    "        if self.auto_launch_pending {\n            if let Err(error) = self.action(events) {\n                self.fail(error);\n                events.exit();\n            }\n            return;\n        }\n        if let Err(error) = self.open(events) {\n            self.fail(error);\n            events.exit();\n        }\n    }\n    fn suspended",
 )
 replace_once(
     launcher,
@@ -76,6 +76,93 @@ replace_once(
     launcher,
     "        if let Some(mut game) = self.game.take() {\n            game.exiting(events);\n            drop(game);\n        }\n        crate::performance::stop();",
     "        if let Some(mut game) = self.game.take() {\n            game.exiting(events);\n            drop(game);\n        }\n        if self.launch_from_zarust {\n            crate::performance::stop();\n            crate::platform::hide();\n            horizon_client::auth::clear_current();\n            crate::diagnostics::heartbeat(\"returned_to_zarust\", || serde_json::json!({}));\n            events.exit();\n            return;\n        }\n        crate::performance::stop();",
+)
+
+
+# Expose the pinned Horizon resource installer to ZaRust's Jetpack Compose UI.
+# It runs before NativeActivity starts, so the user never sees Horizon's installer UI.
+replace_once(
+    main,
+    "    std::process::exit(0);\\n}",
+    """    std::process::exit(0);
+}
+
+fn zarust_jni_string(
+    env: &mut jni::JNIEnv<'_>,
+    value: &jni::objects::JString<'_>,
+) -> Result<String, String> {
+    env.get_string(value).map(Into::into).map_err(|error| error.to_string())
+}
+
+#[unsafe(no_mangle)]
+extern "system" fn Java_dev_horizon_android_RustEditionBridge_nativeIsReady(
+    mut env: jni::JNIEnv<'_>,
+    _class: jni::objects::JClass<'_>,
+    home: jni::objects::JString<'_>,
+) -> jni::sys::jboolean {
+    let Ok(home) = zarust_jni_string(&mut env, &home) else {
+        return jni::sys::JNI_FALSE;
+    };
+    let home = std::path::PathBuf::from(home);
+    if horizon_client::official_install::ready(&home) && home.join("engine-data.zip").is_file() {
+        jni::sys::JNI_TRUE
+    } else {
+        jni::sys::JNI_FALSE
+    }
+}
+
+#[unsafe(no_mangle)]
+extern "system" fn Java_dev_horizon_android_RustEditionBridge_nativeInstall(
+    mut env: jni::JNIEnv<'_>,
+    _class: jni::objects::JClass<'_>,
+    home: jni::objects::JString<'_>,
+    cache: jni::objects::JString<'_>,
+    progress: jni::objects::JString<'_>,
+) -> jni::sys::jstring {
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let home = std::path::PathBuf::from(zarust_jni_string(&mut env, &home)?);
+        let cache = std::path::PathBuf::from(zarust_jni_string(&mut env, &cache)?);
+        let progress = std::path::PathBuf::from(zarust_jni_string(&mut env, &progress)?);
+        horizon_client::official_install::configure_download_cache_dir(cache);
+        horizon_client::official_install::install_with_progress(&home, |update| {
+            let value = serde_json::json!({
+                "stage": update.stage.label(),
+                "done": update.done,
+                "total": update.total,
+                "complete": false,
+                "error": null
+            });
+            if let Ok(bytes) = serde_json::to_vec(&value) {
+                let temporary = progress.with_extension("partial");
+                if std::fs::write(&temporary, bytes).is_ok() {
+                    let _ = std::fs::rename(&temporary, &progress);
+                }
+            }
+        }).map_err(|error| error.to_string())?;
+        let value = serde_json::json!({
+            "stage": "Ready",
+            "done": 1,
+            "total": 1,
+            "complete": true,
+            "error": null
+        });
+        if let Ok(bytes) = serde_json::to_vec(&value) {
+            let temporary = progress.with_extension("partial");
+            if std::fs::write(&temporary, bytes).is_ok() {
+                let _ = std::fs::rename(&temporary, &progress);
+            }
+        }
+        Ok::<String, String>(String::new())
+    }))
+    .unwrap_or_else(|_| Err("Horizon resource installation panicked".to_string()));
+    let message = match result {
+        Ok(message) => message,
+        Err(error) => error,
+    };
+    env.new_string(message)
+        .map(|value| value.into_raw())
+        .unwrap_or(std::ptr::null_mut())
+}""",
 )
 
 print("Horizon storage isolation and direct-launch patches applied.")
