@@ -1,0 +1,124 @@
+name: Build ZaRust with Rust Edition
+
+on:
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: Android build variant
+        required: true
+        type: choice
+        options:
+          - Release
+          - Debug
+        default: Release
+
+permissions:
+  contents: read
+
+jobs:
+  rust-edition-arm64:
+    name: Rust Edition (arm64-v8a) + ZaRust
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+      OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
+      CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
+      CARGO_TERM_COLOR: always
+
+    steps:
+      - name: Checkout ZaRust Launcher
+        uses: actions/checkout@v7
+        with:
+          path: ZaRust
+
+      - name: Checkout pinned Horizon Android source
+        uses: actions/checkout@v7
+        with:
+          repository: Vasysik/horizon-android
+          ref: 7301f6fdd7f470b11317276e7a11b4dc615c137a
+          path: ZaRust/HorizonEngine
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK and NDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android build tools
+        run: |
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;25.2.9519653" "ndk;27.2.12479018"
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            ZaRust/HorizonEngine -> target
+
+      - name: Install Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Isolate Horizon data paths
+        working-directory: ZaRust
+        run: python tools/rust-edition/patch_horizon.py
+
+      - name: Prepare pinned Minecraft engine tables
+        working-directory: ZaRust/HorizonEngine
+        run: python tools/android_prepare.py
+
+      - name: Compile Horizon Rust native engine
+        working-directory: ZaRust/HorizonEngine
+        run: |
+          python tools/android_build.py --abi arm64-v8a --sdk "$ANDROID_HOME" --java-home "$JAVA_HOME" --public --rust-only
+
+      - name: Stage Rust Edition native library and assets
+        working-directory: ZaRust
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import shutil, sys
+          horizon = Path("HorizonEngine")
+          app = Path("ZalithLauncher/src/main")
+          library = horizon / "target/aarch64-linux-android/release/libhorizon_android.so"
+          if not library.is_file():
+              raise SystemExit(f"Missing native library: {library}")
+          jni = app / "jniLibs/arm64-v8a"
+          jni.mkdir(parents=True, exist_ok=True)
+          shutil.copy2(library, jni / "libhorizon_android.so")
+          sys.path.insert(0, str(horizon / "tools"))
+          import android_build
+          engine_data = android_build.engine_data(public=True)
+          assets = app / "assets"
+          assets.mkdir(parents=True, exist_ok=True)
+          shutil.copy2(engine_data, assets / "engine-data.zip")
+          notices = assets / "rust-edition"
+          notices.mkdir(parents=True, exist_ok=True)
+          shutil.copy2(horizon / "LICENSE", notices / "LICENSE.txt")
+          shutil.copy2(horizon / "THIRD_PARTY_NOTICES.md", notices / "THIRD_PARTY_NOTICES.md")
+          print("Staged libhorizon_android.so and verified public engine data.")
+          PY
+
+      - name: Build ZaRust APK with Rust Edition enabled
+        working-directory: ZaRust
+        run: |
+          chmod +x gradlew
+          ./gradlew ZalithLauncher:assemble${{ inputs.variant }} -Darch=arm64 -PrustEditionEnabled=true
+
+      - name: Upload combined ZaRust APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: ZaRust-${{ inputs.variant }}-RustEdition-arm64
+          path: ZaRust/ZalithLauncher/build/outputs/apk/${{ inputs.variant == 'Release' && 'release' || 'debug' }}/*.apk
+          if-no-files-found: error
+          archive: false
