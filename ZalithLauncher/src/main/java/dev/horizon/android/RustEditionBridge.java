@@ -84,16 +84,35 @@ public final class RustEditionBridge {
         }
     }
 
-    /** Syncs the account currently selected in Zalith without asking the user to sign in again. */
+    /**
+     * Mirrors the one account selected in ZaRust into both the engine account store and the
+     * Android launcher config. There is deliberately no second editable Rust player name.
+     */
     public static String syncZalithAccount(
             Context context, String uuid, String name, String accessToken,
             String refreshToken, long expiresAt, String xuid, boolean microsoft) {
+        String safeName = name == null ? "" : name.trim();
+        String safeAccess = accessToken == null ? "" : accessToken;
+        String safeRefresh = refreshToken == null ? "" : refreshToken;
+        if (safeName.isEmpty()) return "Nama akun ZaRust kosong. Pilih akun dari menu Accounts.";
+        if (microsoft && (safeAccess.isEmpty() || safeRefresh.isEmpty())) {
+            return "Token Microsoft akun ZaRust belum tersedia. Segarkan akun di menu Accounts.";
+        }
+        try {
+            JSONObject settings = readSettings(context);
+            settings.put("name", safeName);
+            settings.put("account_uuid", uuid == null ? "" : uuid);
+            settings.put("account_type", microsoft ? "Microsoft" : "Local");
+            writeSettings(context, settings);
+        } catch (IOException | JSONException error) {
+            return "Gagal menyimpan akun Rust: " + error.getMessage();
+        }
         return nativeSyncZalithAccount(
                 home(context).getAbsolutePath(),
                 uuid == null ? "" : uuid,
-                name == null ? "" : name,
-                accessToken == null ? "" : accessToken,
-                refreshToken == null ? "" : refreshToken,
+                safeName,
+                safeAccess,
+                safeRefresh,
                 expiresAt,
                 xuid == null ? "" : xuid,
                 microsoft);
