@@ -64,7 +64,9 @@ jobs:
           test -n "$ANDROID_HOME" || { echo "GitHub runner Android SDK is unavailable"; exit 1; }
           sdkmanager_path=$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager -print -quit)
           test -n "$sdkmanager_path"
+          set +o pipefail
           yes | "$sdkmanager_path" --licenses >/dev/null
+          set -o pipefail
           "$sdkmanager_path" \
             "platform-tools" \
             "platforms;android-36" \
