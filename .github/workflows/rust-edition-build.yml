@@ -95,8 +95,9 @@ jobs:
           for mod in fps-overlay keystrokes far-view minimap zoom recipes; do
             echo "::group::Build official mod: $mod"
             (cd "mods/official/$mod" && "$cli" build)
-            test -s "mods/official/$mod/target/horizon-mod"
-            find "mods/official/$mod/target/horizon-mod" -maxdepth 1 -name '*.hmod' -type f -size +0c -print -quit | grep -q .
+            id=$(grep '^id = ' "mods/official/$mod/horizon-mod.toml" | head -n1 | cut -d '"' -f2)
+            test -n "$id"
+            test -s "target/horizon-mod/$id.hmod"
             echo "::endgroup::"
           done
 
@@ -122,8 +123,8 @@ jobs:
           mkdir -p "$mods" "$notices"
           cp StarlingMods/LICENSE "$notices/STARLING-MODS-LICENSE.txt"
           for id in fps_overlay keystrokes far_view minimap zoom recipes; do
-            source=$(find "StarlingMods/mods/official" -path "*/target/horizon-mod/$id.hmod" -type f -print -quit)
-            test -n "$source" && test -s "$source"
+            source="StarlingMods/target/horizon-mod/$id.hmod"
+            test -s "$source"
             cp "$source" "$mods/$id.hmod"
           done
           printf '%s\\n' '1d53294cf27dbe676197fdd826669d6b7030d2e1' > "$mods/version.txt"
