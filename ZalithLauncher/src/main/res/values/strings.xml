@@ -1672,4 +1672,5 @@
     <string name="recorder_notification_channel_name">Screen Recording</string>
     <string name="recorder_notification_title">Recording in progress</string>
     <string name="recorder_notification_text">Game audio and screen are being captured</string>
+    <string name="settings_tab_rust_edition">Rust Edition</string>
 </resources>
