@@ -3,7 +3,6 @@
 from pathlib import Path
 import argparse
 import shutil
-import os
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--starling-root", default="StarlingEngine")
@@ -19,23 +18,17 @@ native_names = [
     "libhorizon_android.so",
     "libstarling_java.so",
     "libstarling_javac.so",
-    "libc++_shared.so",
 ]
 jni.mkdir(parents=True, exist_ok=True)
-for name in native_names[:-1]:
+for name in native_names:
     source = out / name
     if not source.is_file() or source.stat().st_size == 0:
         raise SystemExit(f"Starling native output missing or empty: {source}")
     shutil.copy2(source, jni / name)
 
-# build_apk.py links this C++ runtime directly from the NDK sysroot into its standalone APK;
-# it does not copy it into target/android, so source it from the same pinned NDK here.
-android_home = Path(os.environ.get("ANDROID_HOME", ""))
-ndk = Path(os.environ.get("ANDROID_NDK_HOME") or android_home / "ndk/28.2.13676358")
-libcxx = ndk / "toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so"
-if not libcxx.is_file() or libcxx.stat().st_size == 0:
-    raise SystemExit(f"Starling NDK C++ runtime missing or empty: {libcxx}")
-shutil.copy2(libcxx, jni / "libc++_shared.so")
+# ZaRust's ndkBuild already packages libc++_shared.so. Do not copy Starling's second
+# copy into jniLibs: Android's native-library merge rejects two files with that same path.
+
 
 source_assets = out / "assets"
 if not source_assets.is_dir():
