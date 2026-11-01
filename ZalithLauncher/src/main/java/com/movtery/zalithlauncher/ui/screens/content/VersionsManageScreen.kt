@@ -67,6 +67,8 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.BuildConfig
+import com.movtery.zalithlauncher.game.account.AccountType
+import com.movtery.zalithlauncher.game.account.AccountsManager
 import com.movtery.zalithlauncher.game.path.GamePathManager
 import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.game.version.installed.VersionComparator
@@ -631,6 +633,24 @@ private fun VersionsLayout(
                                                 dev.horizon.android.RustEditionBridge.isReady(context)
                                             }.getOrDefault(false)
                                             if (installed) {
+                                                val account = AccountsManager.currentAccountFlow.value
+                                                val isMicrosoft = account?.accountType == AccountType.MICROSOFT.tag
+                                                val syncResult = runCatching {
+                                                    dev.horizon.android.RustEditionBridge.syncZalithAccount(
+                                                        context = context,
+                                                        uuid = account?.profileId.orEmpty(),
+                                                        name = account?.username ?: "Player",
+                                                        accessToken = if (isMicrosoft) account?.accessToken.orEmpty() else "",
+                                                        refreshToken = if (isMicrosoft) account?.refreshToken.orEmpty() else "",
+                                                        expiresAt = if (isMicrosoft) account?.expiresAt ?: 0L else 0L,
+                                                        xuid = if (isMicrosoft) account?.xUid.orEmpty() else "",
+                                                        microsoft = isMicrosoft
+                                                    )
+                                                }.getOrElse { it.message ?: "Gagal menyinkronkan akun ZaRust" }
+                                                if (syncResult != "ok") {
+                                                    Toast.makeText(context, syncResult, Toast.LENGTH_LONG).show()
+                                                    return@clickable
+                                                }
                                                 context.startActivity(
                                                     android.content.Intent(
                                                         context,
