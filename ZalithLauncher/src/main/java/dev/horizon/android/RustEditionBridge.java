@@ -52,10 +52,10 @@ public final class RustEditionBridge {
         }
     }
 
-    public static boolean isReady(Context context) throws IOException {
+    public static boolean isReady(Context context) {
         File home = home(context);
-        ensureEngineData(context, home);
-        return nativeIsReady(home.getAbsolutePath());
+        return new File(home, "engine-data.zip").isFile()
+                && nativeIsReady(home.getAbsolutePath());
     }
 
     /** Runs on an IO dispatcher; progress is published as a small JSON file. */
