@@ -106,7 +106,9 @@ public final class HorizonDocumentsProvider extends DocumentsProvider {
             JSONArray ids = new JSONArray(call("path", child, parent == null ? "" : parent));
             java.util.ArrayList<String> path = new java.util.ArrayList<>();
             for (int i = 0; i < ids.length(); i++) path.add(ids.getString(i));
-            return new DocumentsContract.Path(parent == null ? "horizon" : null, path);
+            return new DocumentsContract.Path(
+                    parent == null ? DocumentsContract.buildRootsUri(getContext().getPackageName() + ".documents") : null,
+                    path);
         } catch (JSONException error) { throw new FileNotFoundException("Invalid document path"); }
     }
     @Override public ParcelFileDescriptor openDocument(String id, String mode, CancellationSignal signal)
