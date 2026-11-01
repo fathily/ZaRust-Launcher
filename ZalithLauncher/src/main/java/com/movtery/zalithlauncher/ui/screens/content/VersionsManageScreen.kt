@@ -628,7 +628,7 @@ private fun VersionsLayout(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(vertical = 6.dp)
-.clickable {
+                                        .clickable {
                                             dev.horizon.android.RustEditionBridge.launch(
                                                 context,
                                                 AccountsManager.currentAccountFlow.value
