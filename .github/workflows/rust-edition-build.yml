@@ -18,7 +18,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: zarust-starling-rust-edition-\${{ github.ref }}
+  group: zarust-starling-rust-edition-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -27,13 +27,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
-      KEY_PASSWORD: \${{ secrets.KEY_PASSWORD }}
-      STORE_PASSWORD: \${{ secrets.STORE_PASSWORD }}
-      OAUTH_CLIENT_ID: \${{ secrets.OAUTH_CLIENT_ID }}
-      CURSEFORGE_API_KEY: \${{ secrets.CURSEFORGE_API_KEY }}
+      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+      OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
+      CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
       CARGO_TERM_COLOR: always
       CARGO_BUILD_JOBS: 3
-      BUILD_VARIANT: \${{ github.event.inputs.variant || 'Debug' }}
+      BUILD_VARIANT: ${{ github.event.inputs.variant || 'Debug' }}
 
     steps:
       - name: Checkout ZaRust Launcher
@@ -118,7 +118,7 @@ jobs:
         working-directory: ZaRust
         run: |
           set -euo pipefail
-          variant="\${BUILD_VARIANT,,}"
+          variant="${BUILD_VARIANT,,}"
           apk=$(find "ZalithLauncher/build/outputs/apk/$variant" -maxdepth 1 -type f -name '*.apk' -print -quit)
           test -n "$apk"
           aapt="$ANDROID_HOME/build-tools/35.0.0/aapt"
@@ -146,12 +146,12 @@ jobs:
                   raise SystemExit("APK manifest is missing or empty")
           print("Verified package id, Starling native libraries, game assets and DEX.")
           PY
-          cp "$apk" "ZaRust-Starling-\${BUILD_VARIANT}-arm64-v8a.apk"
+          cp "$apk" "ZaRust-Starling-${BUILD_VARIANT}-arm64-v8a.apk"
 
       - name: Upload ZaRust Starling APK
         uses: actions/upload-artifact@v4
         with:
-          name: ZaRust-Starling-\${{ env.BUILD_VARIANT }}-arm64-v8a
-          path: ZaRust/ZaRust-Starling-\${{ env.BUILD_VARIANT }}-arm64-v8a.apk
+          name: ZaRust-Starling-${{ env.BUILD_VARIANT }}-arm64-v8a
+          path: ZaRust/ZaRust-Starling-${{ env.BUILD_VARIANT }}-arm64-v8a.apk
           if-no-files-found: error
           retention-days: 14
