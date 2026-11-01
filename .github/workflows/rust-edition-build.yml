@@ -1,4 +1,4 @@
-name: Build ZaRust with Rust Edition
+name: Build ZaRust with Starling Rust Edition
 
 on:
   pull_request:
@@ -10,194 +10,144 @@ on:
         required: true
         type: choice
         options:
-          - Release
           - Debug
-        default: Release
+          - Release
+        default: Debug
 
 permissions:
   contents: read
 
 concurrency:
-  group: zarust-rust-edition-${{ github.ref }}
+  group: zarust-starling-rust-edition-\${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  rust-edition-arm64:
-    name: Rust Edition (arm64-v8a) + ZaRust
+  starling-arm64:
+    name: Starling native engine + ZaRust (arm64-v8a)
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
-      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-      STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
-      OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
-      CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
+      KEY_PASSWORD: \${{ secrets.KEY_PASSWORD }}
+      STORE_PASSWORD: \${{ secrets.STORE_PASSWORD }}
+      OAUTH_CLIENT_ID: \${{ secrets.OAUTH_CLIENT_ID }}
+      CURSEFORGE_API_KEY: \${{ secrets.CURSEFORGE_API_KEY }}
       CARGO_TERM_COLOR: always
-      BUILD_VARIANT: ${{ github.event.inputs.variant || 'Debug' }}
+      CARGO_BUILD_JOBS: 3
+      BUILD_VARIANT: \${{ github.event.inputs.variant || 'Debug' }}
 
     steps:
       - name: Checkout ZaRust Launcher
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
         with:
           path: ZaRust
 
-      - name: Checkout pinned Horizon Android source
-        uses: actions/checkout@v7
-        with:
-          repository: Vasysik/horizon-android
-          ref: 7301f6fdd7f470b11317276e7a11b4dc615c137a
-          path: ZaRust/HorizonEngine
-
-      - name: Checkout Starling official Rust mods
-        uses: actions/checkout@v7
+      - name: Checkout pinned Starling Android source
+        uses: actions/checkout@v4
         with:
           repository: JuanLuci/starling
           ref: 1d53294cf27dbe676197fdd826669d6b7030d2e1
-          path: ZaRust/StarlingMods
+          path: ZaRust/StarlingEngine
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: '21'
 
-      - name: Set up Android SDK and NDK
+      - name: Set up Node.js for JavaScript mods
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Set up Android SDK
         uses: android-actions/setup-android@v3
-        with:
-          # The action's default package list includes the obsolete `tools` package.
-          packages: platform-tools
 
-      - name: Install Android build tools
+      - name: Install Starling SDK and NDK pins
         run: |
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;25.2.9519653" "ndk;27.2.12479018"
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;35.0.0" \
+            "ndk;28.2.13676358" \
+            "ndk;25.2.9519653"
 
-      - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@1.97.0
-        with:
-          targets: aarch64-linux-android, wasm32-unknown-unknown
-
-      - name: Ensure Rust compilation targets for pinned toolchains
+      - name: Set up Rust and cargo-ndk
         run: |
-          set -euo pipefail
-          # Starling's mod compiler uses the workflow toolchain (1.97.0).
-          rustup target add --toolchain 1.97.0 wasm32-unknown-unknown
-          # Horizon's checked-in rust-toolchain.toml pins its native engine to 1.95.0.
-          rustup toolchain install 1.95.0 --profile minimal --no-self-update
-          rustup target add --toolchain 1.95.0 aarch64-linux-android
+          rustup toolchain install stable --profile minimal --target aarch64-linux-android
+          rustup default stable
+          cargo install cargo-ndk --version 3.5.4 --locked
+          rustc --version
+          cargo ndk --version
 
-          echo "Starling toolchain:"
-          (cd ZaRust/StarlingMods && rustc --version)
-          echo "Horizon toolchain and Android std:"
-          (
-            cd ZaRust/HorizonEngine
-            rustc --version
-            rustc --print target-libdir --target aarch64-linux-android | tee /tmp/horizon-target-libdir.txt
-            test -d "$(cat /tmp/horizon-target-libdir.txt)"
-            rustc --print sysroot
-          )
-
-          rustup target list --installed --toolchain 1.97.0 | tee /tmp/rust-1.97-targets.txt
-          grep -Fxq "wasm32-unknown-unknown" /tmp/rust-1.97-targets.txt
-          rustup target list --installed --toolchain 1.95.0 | tee /tmp/rust-1.95-targets.txt
-          grep -Fxq "aarch64-linux-android" /tmp/rust-1.95-targets.txt
-
-      - name: Cache Cargo
+      - name: Cache Starling Cargo builds
         uses: Swatinem/rust-cache@v2
         with:
+          shared-key: zarust-starling-arm64
           workspaces: |
-            ZaRust/HorizonEngine -> target
+            ZaRust/StarlingEngine -> target
 
-      - name: Install Python
-        uses: actions/setup-python@v6
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: '3.12'
 
-      - name: Compile Starling official mods for Horizon
-        working-directory: ZaRust/StarlingMods
-        run: |
-          set -euo pipefail
-          cargo build --release -p cargo-horizon-mod
-          cli="$PWD/target/release/cargo-horizon-mod"
-          for mod in fps-overlay keystrokes far-view minimap zoom recipes; do
-            echo "::group::Build official mod: $mod"
-            (cd "mods/official/$mod" && "$cli" build)
-            id=$(grep '^id = ' "mods/official/$mod/horizon-mod.toml" | head -n1 | cut -d '"' -f2)
-            test -n "$id"
-            test -s "target/horizon-mod/$id.hmod"
-            echo "::endgroup::"
-          done
-
-      - name: Isolate Horizon data paths
+      - name: Patch Starling for ZaRust account ownership
         working-directory: ZaRust
-        run: python tools/rust-edition/patch_horizon.py
+        run: python tools/rust-edition/patch_starling.py StarlingEngine
 
-      - name: Prepare pinned Minecraft engine tables
-        working-directory: ZaRust/HorizonEngine
-        run: python tools/android_prepare.py
+      - name: Build the complete Starling Android engine
+        working-directory: ZaRust/StarlingEngine
+        run: python packaging/android/build_apk.py --profile quick
 
-      - name: Compile Horizon Rust native engine
-        working-directory: ZaRust/HorizonEngine
-        run: |
-          python tools/android_build.py --abi arm64-v8a --sdk "$ANDROID_HOME" --java-home "$JAVA_HOME" --public --rust-only
-
-      - name: Stage Starling official mods
+      - name: Stage Starling native engine, bridge and game assets
         working-directory: ZaRust
-        run: |
-          set -euo pipefail
-          mods="ZalithLauncher/src/main/assets/zarust-official-mods"
-          notices="ZalithLauncher/src/main/assets/rust-edition"
-          mkdir -p "$mods" "$notices"
-          cp StarlingMods/LICENSE "$notices/STARLING-MODS-LICENSE.txt"
-          for id in fps_overlay keystrokes far_view minimap zoom recipes; do
-            source="StarlingMods/target/horizon-mod/$id.hmod"
-            test -s "$source"
-            cp "$source" "$mods/$id.hmod"
-          done
-          printf '%s\n' '1d53294cf27dbe676197fdd826669d6b7030d2e1' > "$mods/version.txt"
-          python - <<'PY'
-          from pathlib import Path
-          files = sorted(Path("ZalithLauncher/src/main/assets/zarust-official-mods").glob("*.hmod"))
-          if len(files) != 6 or any(p.stat().st_size == 0 for p in files):
-              raise SystemExit(f"Expected six non-empty official Starling .hmod files, got {files}")
-          print("Validated official Rust mods:", ", ".join(p.name for p in files))
-          PY
+        run: python tools/rust-edition/stage_starling.py --starling-root StarlingEngine
 
-      - name: Stage Rust Edition native library and assets
-        working-directory: ZaRust
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          import shutil, sys
-          horizon = Path("HorizonEngine")
-          app = Path("ZalithLauncher/src/main")
-          library = horizon / "target/aarch64-linux-android/release/libhorizon_android.so"
-          if not library.is_file():
-              raise SystemExit(f"Missing native library: {library}")
-          jni = app / "jniLibs/arm64-v8a"
-          jni.mkdir(parents=True, exist_ok=True)
-          shutil.copy2(library, jni / "libhorizon_android.so")
-          sys.path.insert(0, str(horizon / "tools"))
-          import android_build
-          engine_data = android_build.engine_data(public=True)
-          assets = app / "assets"
-          assets.mkdir(parents=True, exist_ok=True)
-          shutil.copy2(engine_data, assets / "engine-data.zip")
-          notices = assets / "rust-edition"
-          notices.mkdir(parents=True, exist_ok=True)
-          shutil.copy2(horizon / "LICENSE", notices / "LICENSE.txt")
-          shutil.copy2(horizon / "THIRD_PARTY_NOTICES.md", notices / "THIRD_PARTY_NOTICES.md")
-          print("Staged libhorizon_android.so and verified public engine data.")
-          PY
-
-      - name: Build ZaRust APK with Rust Edition enabled
+      - name: Build ZaRust APK with embedded Starling
         working-directory: ZaRust
         run: |
           chmod +x gradlew
-          ./gradlew ZalithLauncher:assemble${{ env.BUILD_VARIANT }} -Darch=arm64 -PrustEditionEnabled=true
+          ./gradlew ZalithLauncher:assemble\${{ env.BUILD_VARIANT }} -Darch=arm64 -PrustEditionEnabled=true
 
-      - name: Upload combined ZaRust APK
-        uses: actions/upload-artifact@v7
+      - name: Verify package identity and embedded Starling runtime
+        working-directory: ZaRust
+        run: |
+          set -euo pipefail
+          variant="\${BUILD_VARIANT,,}"
+          apk=$(find "ZalithLauncher/build/outputs/apk/$variant" -maxdepth 1 -type f -name '*.apk' -print -quit)
+          test -n "$apk"
+          aapt="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          "$aapt" dump badging "$apk" | grep -F "package: name='com.zarust.launcher'"
+          python - "$apk" <<'PY'
+          import sys, zipfile
+          apk = sys.argv[1]
+          required = [
+              "lib/arm64-v8a/libhorizon_android.so",
+              "lib/arm64-v8a/libstarling_java.so",
+              "lib/arm64-v8a/libstarling_javac.so",
+              "lib/arm64-v8a/libc++_shared.so",
+              "assets/prepare-kit.zip",
+              "assets/lowbudget.zip",
+              "assets/StarlingVisuals.zip",
+          ]
+          with zipfile.ZipFile(apk) as archive:
+              names = set(archive.namelist())
+              missing = [name for name in required if name not in names]
+              if missing:
+                  raise SystemExit("APK is missing: " + ", ".join(missing))
+              if "classes.dex" not in names:
+                  raise SystemExit("APK is missing Android dex classes")
+              if "AndroidManifest.xml" not in names or not archive.read("AndroidManifest.xml"):
+                  raise SystemExit("APK manifest is missing or empty")
+          print("Verified package id, Starling native libraries, game assets and DEX.")
+          PY
+          cp "$apk" "ZaRust-Starling-\${BUILD_VARIANT}-arm64-v8a.apk"
+
+      - name: Upload ZaRust Starling APK
+        uses: actions/upload-artifact@v4
         with:
-          name: ZaRust-${{ env.BUILD_VARIANT }}-RustEdition-arm64
-          path: ZaRust/ZalithLauncher/build/outputs/apk/${{ env.BUILD_VARIANT == 'Release' && 'release' || 'debug' }}/*.apk
+          name: ZaRust-Starling-\${{ env.BUILD_VARIANT }}-arm64-v8a
+          path: ZaRust/ZaRust-Starling-\${{ env.BUILD_VARIANT }}-arm64-v8a.apk
           if-no-files-found: error
-          archive: false
+          retention-days: 14
