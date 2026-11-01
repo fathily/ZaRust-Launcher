@@ -198,7 +198,7 @@ public final class RustEditionBridge {
         }
         File markerTemp = new File(home, ".zarust-official-mods-version.partial");
         try (FileOutputStream output = new FileOutputStream(markerTemp)) {
-            output.write((version + "\\n").getBytes(StandardCharsets.UTF_8));
+            output.write((version + "\n").getBytes(StandardCharsets.UTF_8));
             output.getFD().sync();
         }
         if (!markerTemp.renameTo(marker)) {
@@ -254,7 +254,7 @@ public final class RustEditionBridge {
         if (enabled) lines.add(key + "true");
         File temporary = new File(home, "horizon-mods.txt.partial");
         try (FileOutputStream output = new FileOutputStream(temporary)) {
-            output.write((String.join("\\n", lines) + (lines.isEmpty() ? "" : "\\n"))
+            output.write((String.join("\n", lines) + (lines.isEmpty() ? "" : "\n"))
                     .getBytes(StandardCharsets.UTF_8));
             output.getFD().sync();
         }
