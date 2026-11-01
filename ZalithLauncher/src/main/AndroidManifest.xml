@@ -58,6 +58,7 @@
 
         <activity
             android:name="dev.horizon.android.HorizonActivity"
+            android:process=":rustgame"
             android:exported="false"
             android:screenOrientation="sensorLandscape"
             android:configChanges="orientation|screenSize|keyboardHidden|keyboard|density|screenLayout"
