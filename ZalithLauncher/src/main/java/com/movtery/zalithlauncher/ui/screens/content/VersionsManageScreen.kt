@@ -632,38 +632,58 @@ private fun VersionsLayout(
                                             val installed = runCatching {
                                                 dev.horizon.android.RustEditionBridge.isReady(context)
                                             }.getOrDefault(false)
-                                            if (installed) {
-                                                val account = AccountsManager.currentAccountFlow.value
-                                                val isMicrosoft = account?.accountType == AccountType.MICROSOFT.tag
-                                                val syncResult = runCatching {
-                                                    dev.horizon.android.RustEditionBridge.syncZalithAccount(
-                                                        context,
-                                                        account?.profileId.orEmpty(),
-                                                        account?.username ?: "Player",
-                                                        if (isMicrosoft) account?.accessToken.orEmpty() else "",
-                                                        if (isMicrosoft) account?.refreshToken.orEmpty() else "",
-                                                        if (isMicrosoft) account?.expiresAt ?: 0L else 0L,
-                                                        if (isMicrosoft) account?.xUid.orEmpty() else "",
-                                                        isMicrosoft
-                                                    )
-                                                }.getOrElse { it.message ?: "Gagal menyinkronkan akun ZaRust" }
-                                                if (syncResult != "ok") {
-                                                    Toast.makeText(context, syncResult, Toast.LENGTH_LONG).show()
-                                                    return@clickable
-                                                }
-                                                context.startActivity(
-                                                    android.content.Intent(
-                                                        context,
-                                                        dev.horizon.android.HorizonActivity::class.java
-                                                    )
-                                                )
-                                            } else {
+                                            if (!installed) {
                                                 Toast.makeText(
                                                     context,
                                                     "Install resource dari Settings → Rust Edition terlebih dahulu.",
                                                     Toast.LENGTH_LONG
                                                 ).show()
+                                                return@clickable
                                             }
+
+                                            val account = AccountsManager.currentAccountFlow.value
+                                            if (account == null || account.username.isBlank()) {
+                                                Toast.makeText(
+                                                    context,
+                                                    "Pilih akun terlebih dahulu dari menu Accounts ZaRust.",
+                                                    Toast.LENGTH_LONG
+                                                ).show()
+                                                return@clickable
+                                            }
+
+                                            val isMicrosoft = account.accountType == AccountType.MICROSOFT.tag
+                                            val isLocal = account.accountType == AccountType.LOCAL.tag
+                                            if (!isMicrosoft && !isLocal) {
+                                                Toast.makeText(
+                                                    context,
+                                                    "Akun auth-server ini belum didukung Rust Edition. Gunakan akun Microsoft atau Local dari ZaRust.",
+                                                    Toast.LENGTH_LONG
+                                                ).show()
+                                                return@clickable
+                                            }
+
+                                            val syncResult = runCatching {
+                                                dev.horizon.android.RustEditionBridge.syncZalithAccount(
+                                                    context,
+                                                    account.profileId.orEmpty(),
+                                                    account.username,
+                                                    if (isMicrosoft) account.accessToken.orEmpty() else "",
+                                                    if (isMicrosoft) account.refreshToken.orEmpty() else "",
+                                                    if (isMicrosoft) account.expiresAt else 0L,
+                                                    if (isMicrosoft) account.xUid.orEmpty() else "",
+                                                    isMicrosoft
+                                                )
+                                            }.getOrElse { it.message ?: "Gagal menyinkronkan akun ZaRust" }
+                                            if (syncResult != "ok") {
+                                                Toast.makeText(context, syncResult, Toast.LENGTH_LONG).show()
+                                                return@clickable
+                                            }
+                                            context.startActivity(
+                                                android.content.Intent(
+                                                    context,
+                                                    dev.horizon.android.HorizonActivity::class.java
+                                                )
+                                            )
                                         },
                                     shape = MaterialTheme.shapes.large,
                                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
