@@ -76,4 +76,5 @@
 -keep class com.github.steveice10.opennbt.** { *; }
 # Horizon Rust Edition JNI entry points
 -keep class dev.horizon.android.HorizonActivity { *; }
+-keep class dev.horizon.android.RustEditionBridge { *; }
 -keep class dev.horizon.android.HorizonDocumentsProvider { *; }
