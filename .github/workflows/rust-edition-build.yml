@@ -75,6 +75,14 @@ jobs:
         with:
           targets: aarch64-linux-android, wasm32-unknown-unknown
 
+      - name: Ensure Rust compilation targets
+        run: |
+          set -euo pipefail
+          rustup target add --toolchain 1.97.0 aarch64-linux-android wasm32-unknown-unknown
+          rustup target list --installed --toolchain 1.97.0 | tee /tmp/rust-targets.txt
+          grep -Fxq "aarch64-linux-android" /tmp/rust-targets.txt
+          grep -Fxq "wasm32-unknown-unknown" /tmp/rust-targets.txt
+
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
         with:
