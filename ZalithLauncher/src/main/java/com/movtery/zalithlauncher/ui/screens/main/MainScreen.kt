@@ -74,6 +74,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
 import com.movtery.zalithlauncher.BuildKeys
+import dev.horizon.android.RustEditionBridge
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.coroutine.Task
 import com.movtery.zalithlauncher.coroutine.TaskSystem
@@ -586,6 +587,9 @@ private fun NavigationUI(
                             eventViewModel.sendEvent(
                                 EventViewModel.Event.Launch.Game(version)
                             )
+                        },
+                        onLaunchRustEdition = { account ->
+                            RustEditionBridge.launch(context, account)
                         },
                         onOpenLink = {
                             eventViewModel.sendEvent(EventViewModel.Event.OpenLink(it))
