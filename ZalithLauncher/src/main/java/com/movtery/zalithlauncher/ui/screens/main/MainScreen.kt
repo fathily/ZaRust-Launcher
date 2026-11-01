@@ -19,7 +19,6 @@
 package com.movtery.zalithlauncher.ui.screens.main
 
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
-import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.fadeIn
@@ -74,7 +73,6 @@ import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
-import com.movtery.zalithlauncher.BuildConfig
 import com.movtery.zalithlauncher.BuildKeys
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.coroutine.Task
@@ -238,9 +236,6 @@ fun MainScreen(
                         screenKey = NormalNavKey.Recordings
                     )
                 },
-                toRustEdition = {
-                    context.startActivity(android.content.Intent(context, dev.horizon.android.HorizonActivity::class.java))
-                },
                 changeExpandedState = {
                     changeTasksExpandedState()
                 },
@@ -291,7 +286,6 @@ private fun <E: TitledNavKey> TopBar(
     toFileManagerScreen: () -> Unit,
     toMultiplayerScreen: () -> Unit,
     toRecordingsScreen: () -> Unit,
-    toRustEdition: () -> Unit,
     changeExpandedState: () -> Unit,
 ) {
     val festivals = LocalFestivals.current
@@ -426,14 +420,6 @@ private fun <E: TitledNavKey> TopBar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                if (inLauncherScreen && BuildConfig.RUST_EDITION_ENABLED &&
-                    Build.VERSION.SDK_INT >= 28 && Build.SUPPORTED_ABIS.contains("arm64-v8a")) {
-                    Text(
-                        text = "Rust Edition",
-                        modifier = Modifier.clickable(onClick = toRustEdition),
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                }
                 AnimatedVisibility(
                     visible = !(isTasksExpanded || taskRunning),
                     enter = slideInVertically(
