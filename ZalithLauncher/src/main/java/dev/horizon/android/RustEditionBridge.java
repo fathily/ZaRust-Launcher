@@ -24,6 +24,11 @@ public final class RustEditionBridge {
 
     private static native boolean nativeIsReady(String homePath);
     private static native String nativeInstall(String homePath, String cachePath, String progressPath);
+    private static native String nativeAccountStatus(String homePath);
+    private static native String nativeStartSignIn(String homePath);
+    private static native String nativeSignInStatus(String homePath);
+    private static native String nativeCancelSignIn(String homePath);
+    private static native String nativeSignOut(String homePath);
 
     public static File home(Context context) {
         return new File(context.getFilesDir(), "rust-edition");
@@ -77,6 +82,34 @@ public final class RustEditionBridge {
             byte[] bytes = java.nio.file.Files.readAllBytes(file.toPath());
             return new JSONObject(new String(bytes, StandardCharsets.UTF_8));
         } catch (Exception ignored) {
+            return new JSONObject();
+        }
+    }
+
+    public static JSONObject accountStatus(Context context) {
+        return jsonOrEmpty(nativeAccountStatus(home(context).getAbsolutePath()));
+    }
+
+    public static JSONObject startSignIn(Context context) {
+        return jsonOrEmpty(nativeStartSignIn(home(context).getAbsolutePath()));
+    }
+
+    public static JSONObject signInStatus(Context context) {
+        return jsonOrEmpty(nativeSignInStatus(home(context).getAbsolutePath()));
+    }
+
+    public static JSONObject cancelSignIn(Context context) {
+        return jsonOrEmpty(nativeCancelSignIn(home(context).getAbsolutePath()));
+    }
+
+    public static JSONObject signOut(Context context) {
+        return jsonOrEmpty(nativeSignOut(home(context).getAbsolutePath()));
+    }
+
+    private static JSONObject jsonOrEmpty(String value) {
+        try {
+            return new JSONObject(value == null ? "{}" : value);
+        } catch (JSONException ignored) {
             return new JSONObject();
         }
     }
