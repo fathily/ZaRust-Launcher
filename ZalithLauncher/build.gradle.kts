@@ -67,6 +67,7 @@ android {
         versionCode = launcherVersionCode
         versionName = launcherVersionName
         manifestPlaceholders["launcher_name"] = launcherAPPName
+        buildConfigField("boolean", "RUST_EDITION_ENABLED", (project.findProperty("rustEditionEnabled") == "true").toString())
     }
 
     buildTypes {
