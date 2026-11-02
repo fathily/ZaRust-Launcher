@@ -208,4 +208,255 @@ replace_once(
                 // The Starling-owned account/login page is therefore not exposed here.""",
 )
 
+
+# Draw progress from ZaRust over Starling's native setup card.
+download_activity = r"""
+
+    /** Current first-run download/preparation state, supplied by android_lib.rs. */
+    private static native String zarustDownloadState();
+
+    private final Handler zarustHandler = new Handler(Looper.getMainLooper());
+    private View zarustDownloadOverlay;
+    private TextView zarustDownloadTitle;
+    private TextView zarustDownloadBody;
+    private TextView zarustDownloadCount;
+    private ProgressBar zarustDownloadProgress;
+    private int zarustWaitPolls;
+
+    private final Runnable zarustDownloadPoll = new Runnable() {
+        @Override
+        public void run() {
+            pollZaRustDownload();
+        }
+    };
+
+    private int zarustDp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+
+    private TextView zarustText(String value, int size, int color, boolean bold) {
+        TextView text = new TextView(this);
+        text.setText(value);
+        text.setTextSize(size);
+        text.setTextColor(color);
+        if (bold) text.setTypeface(null, android.graphics.Typeface.BOLD);
+        return text;
+    }
+
+    private void installZaRustDownloadOverlay() {
+        FrameLayout overlay = new FrameLayout(this);
+        overlay.setBackgroundColor(0xCC0B0C10);
+        overlay.setVisibility(View.GONE);
+
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(zarustDp(28), zarustDp(24), zarustDp(28), zarustDp(24));
+        GradientDrawable cardBackground = new GradientDrawable();
+        cardBackground.setColor(0xFF1B1C22);
+        cardBackground.setCornerRadius(zarustDp(24));
+        cardBackground.setStroke(zarustDp(1), 0xFF343640);
+        card.setBackground(cardBackground);
+        card.setElevation(zarustDp(20));
+
+        TextView brand = zarustText("ZARUST  •  RUST EDITION", 12, 0xFFAAA6FF, true);
+        TextView title = zarustText("Menyiapkan ZaRust", 23, 0xFFF4F3FA, true);
+        TextView body = zarustText(
+                "Mengunduh dan memverifikasi file game resmi untuk perangkat ini.",
+                15, 0xFFC7C7D0, false);
+        ProgressBar progress = new ProgressBar(
+                this, null, android.R.attr.progressBarStyleHorizontal);
+        progress.setIndeterminate(true);
+        progress.setMax(1000);
+        progress.setProgressTintList(android.content.res.ColorStateList.valueOf(0xFF8275F5));
+        progress.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFF353641));
+        TextView count = zarustText("Memeriksa file game…", 13, 0xFFA8A8B4, false);
+
+        LinearLayout.LayoutParams line = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        card.addView(brand, line);
+        LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        titleParams.topMargin = zarustDp(12);
+        card.addView(title, titleParams);
+        LinearLayout.LayoutParams bodyParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        bodyParams.topMargin = zarustDp(8);
+        card.addView(body, bodyParams);
+        LinearLayout.LayoutParams progressParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, zarustDp(8));
+        progressParams.topMargin = zarustDp(20);
+        card.addView(progress, progressParams);
+        LinearLayout.LayoutParams countParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        countParams.topMargin = zarustDp(12);
+        card.addView(count, countParams);
+
+        int available = getResources().getDisplayMetrics().widthPixels - zarustDp(40);
+        int cardWidth = Math.min(zarustDp(660), Math.max(zarustDp(280), available));
+        FrameLayout.LayoutParams cardParams = new FrameLayout.LayoutParams(
+                cardWidth, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER);
+        overlay.addView(card, cardParams);
+        ((ViewGroup) getWindow().getDecorView()).addView(
+                overlay,
+                new ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT));
+
+        zarustDownloadOverlay = overlay;
+        zarustDownloadTitle = title;
+        zarustDownloadBody = body;
+        zarustDownloadCount = count;
+        zarustDownloadProgress = progress;
+        zarustHandler.post(zarustDownloadPoll);
+    }
+
+    private long zarustNumber(String[] fields, int index) {
+        try {
+            return Long.parseLong(fields[index]);
+        } catch (Exception ignored) {
+            return 0L;
+        }
+    }
+
+    private String zarustMb(long bytes) {
+        return String.format(Locale.ROOT, "%.0f MB", bytes / 1000000.0);
+    }
+
+    private void pollZaRustDownload() {
+        if (isFinishing() || zarustDownloadOverlay == null) return;
+
+        final String state;
+        try {
+            state = zarustDownloadState();
+        } catch (Throwable error) {
+            zarustDownloadOverlay.setVisibility(View.GONE);
+            return;
+        }
+        if (state == null || state.isEmpty()) {
+            zarustDownloadOverlay.setVisibility(View.GONE);
+            return;
+        }
+
+        String[] fields = state.split("\\|", 5);
+        String kind = fields[0];
+        boolean active = true;
+        boolean indeterminate = true;
+        int value = 0;
+
+        if ("checking".equals(kind)) {
+            zarustDownloadTitle.setText("Memeriksa file game");
+            zarustDownloadBody.setText("ZaRust sedang memeriksa file Minecraft di penyimpanan privat aplikasi.");
+            zarustDownloadCount.setText("Memeriksa kelengkapan file…");
+        } else if ("downloading".equals(kind)) {
+            long files = zarustNumber(fields, 1);
+            long filesTotal = zarustNumber(fields, 2);
+            long bytes = zarustNumber(fields, 3);
+            long bytesTotal = zarustNumber(fields, 4);
+            zarustDownloadTitle.setText("Mengunduh file Minecraft");
+            zarustDownloadBody.setText("Mengambil file resmi dari server Mojang dan memverifikasi setiap file.");
+            zarustDownloadCount.setText(
+                    files + " dari " + filesTotal + " file  •  " +
+                    zarustMb(bytes) + " dari " + zarustMb(bytesTotal));
+            if (bytesTotal > 0) {
+                indeterminate = false;
+                value = (int) Math.max(0L, Math.min(1000L, bytes * 1000L / bytesTotal));
+            }
+        } else if ("java".equals(kind)) {
+            long bytes = zarustNumber(fields, 1);
+            long total = zarustNumber(fields, 2);
+            zarustDownloadTitle.setText("Menyiapkan Java Runtime");
+            zarustDownloadBody.setText("Mengunduh runtime yang dibutuhkan Rust Edition.");
+            zarustDownloadCount.setText(zarustMb(bytes) + " dari " + zarustMb(total));
+            if (total > 0) {
+                indeterminate = false;
+                value = (int) Math.max(0L, Math.min(1000L, bytes * 1000L / total));
+            }
+        } else if ("unpacking".equals(kind)) {
+            zarustDownloadTitle.setText("Memasang Java Runtime");
+            zarustDownloadBody.setText("Mengekstrak runtime ke penyimpanan privat ZaRust.");
+            zarustDownloadCount.setText("Jangan tutup ZaRust selama proses ini.");
+        } else if ("preparing".equals(kind)) {
+            zarustDownloadTitle.setText("Menyiapkan Rust Edition");
+            zarustDownloadBody.setText(fields.length > 1 && !fields[1].isEmpty()
+                    ? fields[1] : "Mengatur resource game…");
+            zarustDownloadCount.setText("Hampir selesai");
+        } else if ("ready".equals(kind)) {
+            zarustDownloadTitle.setText("File game sudah siap");
+            zarustDownloadBody.setText("ZaRust sedang menyiapkan runtime dan resource.");
+            zarustDownloadCount.setText("Memuat tahap berikutnya…");
+            indeterminate = false;
+            value = 1000;
+            active = zarustWaitPolls < 12;
+            zarustWaitPolls++;
+        } else if ("missing".equals(kind)) {
+            zarustWaitPolls++;
+            active = zarustWaitPolls < 32;
+        } else {
+            // Let the engine's own retry/error screen handle failures and completed games.
+            active = false;
+        }
+
+        if (active && !"missing".equals(kind)) {
+            zarustDownloadProgress.setIndeterminate(indeterminate);
+            if (!indeterminate) zarustDownloadProgress.setProgress(value);
+            zarustDownloadOverlay.setVisibility(View.VISIBLE);
+        } else if (!active) {
+            zarustDownloadOverlay.setVisibility(View.GONE);
+            return;
+        }
+
+        zarustHandler.postDelayed(zarustDownloadPoll, 350L);
+    }
+
+
+"""
+replace_once(
+    activity,
+    """    /** Android took back the pointer the game had captured (android_lib.rs). */
+    private static native void onPointerCaptureLost();""",
+    """    /** Android took back the pointer the game had captured (android_lib.rs). */
+    private static native void onPointerCaptureLost();
+
+    private static native String zarustDownloadState();""",
+)
+replace_once(
+    activity,
+    """        hideSystemBars();
+    }
+
+    @Override
+    public void onWindowFocusChanged""",
+    """        hideSystemBars();
+        installZaRustDownloadOverlay();
+    }
+
+    @Override
+    public void onWindowFocusChanged""",
+)
+replace_once(
+    activity,
+    """    /**
+     * Capture the mouse for the game's mouse look""",
+    download_activity + """    /**
+     * Capture the mouse for the game's mouse look""",
+)
+replace_once(
+    activity,
+    """    protected void onDestroy() {
+        // The world was saved when the game left the screen""",
+    """    protected void onDestroy() {
+        zarustHandler.removeCallbacks(zarustDownloadPoll);
+        // The world was saved when the game left the screen""",
+)
+
+android_lib = root / "crates/horizon-client/src/android_lib.rs"
+android_text = android_lib.read_text(encoding="utf-8")
+replace_once(
+    android_lib,
+    """static SHARED_FOLDER: OnceLock<PathBuf> = OnceLock::new();""",
+    """static SHARED_FOLDER: OnceLock<PathBuf> = OnceLock::new();
+
+""" + rustState,
+)
+
 print("Starling source patches applied.")
