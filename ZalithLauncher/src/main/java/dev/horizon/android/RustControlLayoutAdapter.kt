@@ -109,11 +109,16 @@ object RustControlLayoutAdapter {
                 joystick != null -> {
                     movement = "analog"
                     val position = joystick!!.optJSONObject("position") ?: JSONObject()
-                    val sizePercent = joystick!!.optInt("sizePercentage", 2500)
+                    val stickSize = if (joystick!!.optString("sizeType") == "dp") {
+                        val diameterPx = joystick!!.optDouble("sizeDp", 200.0) * display.density
+                        4.5 * diameterPx / minSide
+                    } else {
+                        4.5 * (joystick!!.optInt("sizePercentage", 2500) / 10000.0)
+                    }
                     place(
                         position.optInt("x", 1200) / 10000.0,
                         position.optInt("y", 7330) / 10000.0,
-                        (4.5 * (sizePercent / 10000.0)).coerceIn(0.3, 2.5),
+                        stickSize.coerceIn(0.3, 2.5),
                         "on"
                     )
                 }
