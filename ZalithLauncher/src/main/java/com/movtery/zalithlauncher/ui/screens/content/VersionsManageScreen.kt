@@ -66,7 +66,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.movtery.zalithlauncher.R
-import com.movtery.zalithlauncher.BuildConfig
+import dev.horizon.android.RustEditionBridge
 import com.movtery.zalithlauncher.game.account.AccountType
 import com.movtery.zalithlauncher.game.account.AccountsManager
 import com.movtery.zalithlauncher.game.path.GamePathManager
@@ -531,8 +531,7 @@ private fun VersionsLayout(
     onInstall: () -> Unit,
 ) {
     val context = LocalContext.current
-    val rustEditionAvailable = BuildConfig.RUST_EDITION_ENABLED &&
-        Build.VERSION.SDK_INT >= 28 && Build.SUPPORTED_ABIS.contains("arm64-v8a")
+    val rustEditionAvailable = RustEditionBridge.isAvailable()
     val showRustEdition = rustEditionAvailable && versionCategory == VersionCategory.ALL
     val surfaceYOffset by swapAnimateDpAsState(
         targetValue = (-40).dp,
