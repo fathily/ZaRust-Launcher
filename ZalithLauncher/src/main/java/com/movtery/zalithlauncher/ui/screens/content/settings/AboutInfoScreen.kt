@@ -130,6 +130,19 @@ fun AboutInfoScreen(
                         )
 
                         ButtonIconItem(
+                            icon = painterResource(R.drawable.ic_github),
+                            title = stringResource(R.string.about_horizon_title),
+                            text = stringResource(R.string.about_horizon_text),
+                            button = {
+                                Button(
+                                    onClick = { openLink("https://github.com/ludovic111/horizon") }
+                                ) {
+                                    Text(text = stringResource(R.string.about_launcher_project_link))
+                                }
+                            }
+                        )
+
+                        ButtonIconItem(
                             icon = painterResource(R.drawable.img_launcher),
                             title = BuildKeys.LAUNCHER_NAME,
                             text = stringResource(R.string.about_launcher_version, BuildConfig.VERSION_NAME),
