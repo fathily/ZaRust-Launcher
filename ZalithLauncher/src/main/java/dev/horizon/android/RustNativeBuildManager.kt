@@ -104,7 +104,7 @@ object RustNativeBuildManager {
         val expectedHash = metadata.optString("sha256")
         require(sha256Pattern.matches(expectedHash)) { "SHA-256 native build tidak valid" }
         val expectedSize = metadata.optLong("size", -1L)
-        require(expectedSize in 1..(200L * 1024L * 1024L)) {
+        require(expectedSize in 1L..(200L * 1024L * 1024L)) {
             "Ukuran native build di luar batas yang diizinkan"
         }
 
@@ -151,7 +151,7 @@ object RustNativeBuildManager {
             require(received == expectedSize) {
                 "Ukuran file native tidak cocok: $received / $expectedSize byte"
             }
-            val actualHash = digest.digest().joinToString("") { "%02x".format(it) }
+            val actualHash = digest.digest().joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2, "0") }
             require(actualHash == expectedHash) {
                 "SHA-256 tidak cocok. File dihapus agar library rusak tidak dipakai."
             }
