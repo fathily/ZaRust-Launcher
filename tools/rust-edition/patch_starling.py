@@ -515,19 +515,39 @@ replace_once(
     """    let home = game_folder(&private, &mut notes);
     let (args, env) = command_line(&private);""",
     """    let home = game_folder(&private, &mut notes);
-    let zarust_root = private.join("rust-edition");
+    // Context.getFilesDir() (where ZaRust writes) and ANativeActivity.internalDataPath
+    // are not guaranteed to be represented identically on every Android build. Probe both
+    // common roots, plus the actual game folder, instead of silently falling back to Starling.
+    let mut zarust_roots = vec![
+        private.join("rust-edition"),
+        private.join("files").join("rust-edition"),
+    ];
+    if let Some(parent) = private.parent() {
+        zarust_roots.push(parent.join("files").join("rust-edition"));
+    }
+    let zarust_root = zarust_roots
+        .iter()
+        .find(|root| {
+            root.join("zarust-touch-layout.json").is_file()
+                || root.join(".zarust-controls-active").is_file()
+        })
+        .cloned()
+        .unwrap_or_else(|| private.join("rust-edition"));
     let zarust_marker = zarust_root.join(".zarust-controls-active");
     let starling_backup = zarust_root.join("starling-touch-layout.backup.json");
-    let zarust_touch_layout = [
-        zarust_root.join("zarust-touch-layout.json"),
-        home.join("zarust-touch-layout.json"),
-    ]
-    .into_iter()
-    .find(|path| path.is_file());
+    let zarust_touch_layout = zarust_roots
+        .iter()
+        .map(|root| root.join("zarust-touch-layout.json"))
+        .chain(std::iter::once(home.join("zarust-touch-layout.json")))
+        .find(|path| path.is_file());
     let target = home.join("touch-layout.json");
     let temporary = home.join(".touch-layout.zarust.tmp");
 
     if let Some(zarust_touch_layout) = zarust_touch_layout {
+        notes.push(format!(
+            "ZaRust: found Zalith layout source at {}",
+            zarust_touch_layout.display()
+        ));
         // Preserve a native Starling layout before the Zalith-generated layout replaces it.
         let backup_ready = if target.is_file() && !zarust_marker.exists() {
             let _ = std::fs::remove_file(&starling_backup);
@@ -593,6 +613,16 @@ replace_once(
                 ));
             }
         }
+    } else {
+        notes.push(format!(
+            "ZaRust: no generated Zalith touch layout found. Checked: {}; game folder: {}",
+            zarust_roots
+                .iter()
+                .map(|root| root.display().to_string())
+                .collect::<Vec<_>>()
+                .join(", "),
+            home.display()
+        ));
     }
     let (args, env) = command_line(&private);""",
 )
