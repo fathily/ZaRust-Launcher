@@ -87,6 +87,7 @@ fun RustEditionSettingsScreen() {
     val gameHome = RustEditionBridge.gameHome(context)
     val modsDir = RustEditionBridge.modsDirectory(context)
     val shadersDir = RustEditionBridge.shaderPacksDirectory(context)
+    val resourcePacksDir = File(gameHome, "resourcepacks")
     val nativeDir = RustEditionBridge.nativeModsDirectory(context)
     val selected = rustConfigDocuments[selectedDocument]
 
@@ -132,6 +133,9 @@ fun RustEditionSettingsScreen() {
     }
     val shaderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         copySelected(uri, shadersDir, setOf("hshader", "zip"))
+    }
+    val resourcePackPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        copySelected(uri, resourcePacksDir, setOf("zip"))
     }
 
     val gameFilesReady = File(context.filesDir, "starling-files.json").isFile
@@ -248,6 +252,15 @@ fun RustEditionSettingsScreen() {
                 Text("Impor .hshader atau shader pack ZIP ke folder shaderpacks.")
                 Text(shadersDir.absolutePath, style = MaterialTheme.typography.bodySmall)
                 Button(onClick = { shaderPicker.launch(arrayOf("*/*")) }) { Text("Impor Shader") }
+            }
+        }
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Resource Pack Manager", style = MaterialTheme.typography.titleMedium)
+                Text("Impor resource pack ZIP ke folder game Rust Edition. Daftar pack yang aktif tetap mengikuti resourcePacks di options.txt.")
+                Text(resourcePacksDir.absolutePath, style = MaterialTheme.typography.bodySmall)
+                Button(onClick = { resourcePackPicker.launch(arrayOf("*/*")) }) { Text("Impor Resource Pack") }
             }
         }
 
