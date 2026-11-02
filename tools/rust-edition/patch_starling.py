@@ -507,4 +507,38 @@ replace_once(
 """ + rust_state,
 )
 
+# Important: game_folder() migrates old touch-layout.json from private storage to the
+# selected game folder. Apply ZaRust's generated layout only AFTER that migration, otherwise
+# the old Starling layout can overwrite the newly converted Zalith preset.
+replace_once(
+    android_lib,
+    """    let home = game_folder(&private, &mut notes);
+    let (args, env) = command_line(&private);""",
+    """    let home = game_folder(&private, &mut notes);
+    let zarust_touch_layout = private
+        .join("rust-edition")
+        .join("zarust-touch-layout.json");
+    if zarust_touch_layout.is_file() {
+        let target = home.join("touch-layout.json");
+        let temporary = home.join(".touch-layout.zarust.tmp");
+        let applied = std::fs::copy(&zarust_touch_layout, &temporary)
+            .and_then(|_| std::fs::rename(&temporary, &target));
+        match applied {
+            Ok(_) => notes.push(format!(
+                "ZaRust: applied the selected Zalith control layout to {}",
+                target.display()
+            )),
+            Err(error) => {
+                let _ = std::fs::remove_file(&temporary);
+                notes.push(format!(
+                    "ZaRust: could not apply the selected Zalith control layout: {error}"
+                ));
+            }
+        }
+    }
+    let (args, env) = command_line(&private);""",
+)
+
+print("Starling source patches applied.")
+
 print("Starling source patches applied.")
