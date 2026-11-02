@@ -33,6 +33,8 @@ import com.movtery.zalithlauncher.game.account.AccountsManager
 import dev.horizon.android.RustEditionBridge
 import java.io.File
 import java.io.FileOutputStream
+import java.util.zip.ZipFile
+import org.json.JSONObject
 
 private data class RustConfigDocument(
     val title: String,
@@ -89,6 +91,7 @@ fun RustEditionSettingsScreen() {
     val shadersDir = RustEditionBridge.shaderPacksDirectory(context)
     val resourcePacksDir = File(gameHome, "resourcepacks")
     val nativeDir = RustEditionBridge.nativeModsDirectory(context)
+    val hnmodImportDir = File(context.filesDir, "rust-edition/imported-hnmod")
     val selected = rustConfigDocuments[selectedDocument]
 
     LaunchedEffect(selectedDocument, gameHome.absolutePath) {
@@ -130,6 +133,64 @@ fun RustEditionSettingsScreen() {
 
     val hmodPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         copySelected(uri, modsDir, setOf("hmod"))
+    }
+
+    val hnmodPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            runCatching {
+                require(hnmodImportDir.isDirectory || hnmodImportDir.mkdirs()) {
+                    "Tidak bisa membuat folder import native mod"
+                }
+                val displayName = context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                    val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (index >= 0 && cursor.moveToFirst()) cursor.getString(index) else null
+                } ?: "native-mod.hnmod"
+                require(displayName.endsWith(".hnmod", ignoreCase = true)) {
+                    "Pilih file dengan ekstensi .hnmod"
+                }
+                val temporary = File(hnmodImportDir, displayName + ".partial")
+                context.contentResolver.openInputStream(uri).use { input ->
+                    requireNotNull(input) { "File tidak bisa dibaca" }
+                    FileOutputStream(temporary).use { output ->
+                        input.copyTo(output)
+                        output.fd.sync()
+                    }
+                }
+                ZipFile(temporary).use { archive ->
+                    val entries = archive.entries()
+                    var count = 0
+                    var totalExpanded = 0L
+                    var manifestText: String? = null
+                    while (entries.hasMoreElements()) {
+                        val entry = entries.nextElement()
+                        count++
+                        require(count <= 5000) { "Arsip berisi terlalu banyak file" }
+                        require(!entry.name.startsWith("/") && !entry.name.split('/').contains("..")) {
+                            "Arsip berisi path yang tidak aman"
+                        }
+                        if (entry.size > 0) totalExpanded += entry.size
+                        require(totalExpanded <= 128L * 1024L * 1024L) {
+                            "Ukuran hasil ekstrak arsip terlalu besar"
+                        }
+                        if (entry.name == "horizon-native.json") {
+                            require(entry.size in 1..262144) { "Manifest native mod tidak valid" }
+                            manifestText = archive.getInputStream(entry).bufferedReader(Charsets.UTF_8).use { it.readText() }
+                        }
+                    }
+                    val manifest = JSONObject(requireNotNull(manifestText) {
+                        "Manifest horizon-native.json tidak ditemukan"
+                    })
+                    require(manifest.optString("id").isNotBlank()) { "ID mod tidak ditemukan di manifest" }
+                    require(manifest.optString("version").isNotBlank()) { "Versi mod tidak ditemukan di manifest" }
+                }
+                val target = File(hnmodImportDir, displayName)
+                if (target.exists() && !target.delete()) error("Tidak bisa mengganti file lama")
+                check(temporary.renameTo(target)) { "Gagal menyimpan paket .hnmod" }
+                pickerMessage = "Berhasil import $displayName. Paket tersimpan dan menunggu native build."
+            }.onFailure {
+                pickerMessage = it.message ?: "Gagal import .hnmod"
+            }
+        }
     }
     val shaderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         copySelected(uri, shadersDir, setOf("hshader", "zip"))
@@ -266,9 +327,17 @@ fun RustEditionSettingsScreen() {
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Native Mods", style = MaterialTheme.typography.titleMedium)
-                Text("Folder native build Starling: \${nativeDir.absolutePath}")
-                Text("Native build upstream disimpan sebagai library .so beserta metadata; bukan file .hnmod.")
+                Text("Native Mods · HNMOD", style = MaterialTheme.typography.titleMedium)
+                Text("Impor paket source native Horizon (.hnmod). ZaRust memeriksa manifest dan menyimpan paket terpisah dari library runtime Starling.")
+                Text("Paket tersimpan: ${hnmodImportDir.listFiles()?.count { it.isFile && it.extension.equals("hnmod", true) } ?: 0}")
+                Text(hnmodImportDir.absolutePath, style = MaterialTheme.typography.bodySmall)
+                Button(onClick = { hnmodPicker.launch(arrayOf("*/*")) }) { Text("Import .HNMOD") }
+                Text(
+                    "Catatan: impor belum mengaktifkan mod di game. .hnmod perlu dikompilasi menjadi native engine build yang cocok dengan revisi Horizon dan Horizon Mixins; build Android dinamis belum tersedia.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+                Text("Folder native runtime Starling: ${nativeDir.absolutePath}", style = MaterialTheme.typography.bodySmall)
             }
         }
 
