@@ -40,8 +40,8 @@
     <string name="days_ago">%d hari yang lalu</string>
     <string name="months_ago">%d bulan yang lalu</string>
     <string name="years_ago">%d tahun yang lalu</string>
-    <string name="launcher_version_debug_warning">You are using a test version of %s! This version may be unstable and is primarily intended for feature testing and early access. It is not recommended for long-term use. If you encounter any issues, please report them through GitHub.</string>
-    <string name="launcher_version_debug_warning_cant_close">This warning cannot be dismissed</string>
+    <string name="launcher_version_debug_warning">Anda sedang menggunakan versi uji coba %s! Versi ini mungkin tidak stabil dan ditujukan terutama untuk pengujian fitur serta akses awal. Versi ini tidak disarankan untuk penggunaan jangka panjang. Jika mengalami masalah selama pengujian, silakan laporkan melalui GitHub.</string>
+    <string name="launcher_version_debug_warning_cant_close">Peringatan ini tidak dapat diabaikan</string>
     <string name="theme_color_dynamic">Dinamis (Android 12+)</string>
     <string name="theme_color_embermire">Embermire</string>
     <string name="generic_all">Semua</string>
@@ -1236,15 +1236,15 @@
     <string name="download_assets_id_unsupported">Project tidak didukung!</string>
     <string name="settings_launcher_color_theme_style">Gaya Palet</string>
     <string name="disclaimer_title">ZaRust Launcher</string>
-    <string name="disclaimer_content">ZaRust Launcher is a community-modified launcher maintained by AlfaaBEJIRR. Java Edition is based on Zalith Launcher 2; Rust Edition uses the Horizon engine with Android support from the Starling port maintained by JuanLuci. This is not an official Zalith, Horizon, Starling, Mojang, or Microsoft product. TikTok: @alfathgpp.</string>
-    <string name="disclaimer_original_repo">Repository ZaRust</string>
+    <string name="disclaimer_content">ZaRust Launcher adalah launcher komunitas yang dimodifikasi dan dikelola oleh AlfaaBEJIRR. Java Edition menggunakan basis Zalith Launcher 2; Rust Edition menggunakan engine Horizon dengan dukungan Android dari Starling yang dikelola JuanLuci. Ini bukan produk resmi Zalith, Horizon, Starling, Mojang, atau Microsoft. TikTok: @alfathgpp.</string>
+    <string name="disclaimer_original_repo">Repositori ZaRust</string>
     <string name="launcher_fork_subtitle">Basis Zalith • Horizon Rust Edition</string>
     <string name="about_zarust_creator_title">AlfaaBEJIRR</string>
     <string name="about_zarust_creator_text">Pengelola dan pengembang ZaRust Launcher</string>
     <string name="about_zarust_tiktok">TikTok</string>
     <string name="about_zarust_repository">Repository</string>
     <string name="about_starling_title">Starling Android</string>
-    <string name="about_starling_text">Port Android Starling yang dikelola JuanLuci; menyediakan integrasi platform Android untuk Rust Edition ZaRust. Starling tetap merupakan proyek upstream terpisah.</string>
+    <string name="about_starling_text">Port Android Starling yang dikelola JuanLuci dan menyediakan dukungan platform Android untuk Rust Edition ZaRust. Starling tetap merupakan proyek upstream yang terpisah.</string>
     <string name="about_horizon_title">Horizon Rust Engine</string>
-    <string name="about_horizon_text">Engine Minecraft berbasis Rust oleh Ludovic Marie dan kontributor Horizon. Starling dibuat berdasarkan Horizon; ZaRust memberi kredit kepada kedua proyek secara terpisah.</string>
+    <string name="about_horizon_text">Engine Minecraft berbasis Rust yang dikembangkan Ludovic Marie bersama para kontributor Horizon. Starling dibangun berdasarkan Horizon; ZaRust memberikan kredit kepada kedua proyek secara terpisah.</string>
 </resources>
