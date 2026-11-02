@@ -631,6 +631,7 @@ private fun RightMenuContent(
     ConstraintLayout(
         modifier = modifier
     ) {
+        val rustEditionAvailable = RustEditionBridge.isAvailable()
         val (accountAvatar, versionManagerLayout, launchButton, rustButton) = createRefs()
 
         AccountAvatar(
@@ -744,7 +745,11 @@ private fun RightMenuContent(
             Modifier
                 .fillMaxWidth()
                 .constrainAs(launchButton) {
-                    bottom.linkTo(rustButton.top, margin = 8.dp)
+                    if (rustEditionAvailable) {
+                        bottom.linkTo(rustButton.top, margin = 8.dp)
+                    } else {
+                        bottom.linkTo(parent.bottom, margin = 8.dp)
+                    }
                 }
                 .padding(PaddingValues(horizontal = 12.dp)),
             {
@@ -755,7 +760,7 @@ private fun RightMenuContent(
             }
         )
 
-        if (RustEditionBridge.isAvailable()) {
+        if (rustEditionAvailable) {
             launchButton(
                 Modifier
                     .fillMaxWidth()
