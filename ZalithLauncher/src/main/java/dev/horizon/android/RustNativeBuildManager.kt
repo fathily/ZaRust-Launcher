@@ -66,7 +66,7 @@ object RustNativeBuildManager {
                 urls[name] = url
             }
         }
-        val prefix = "v$version__"
+        val prefix = "v${version}__"
         urls.keys.asSequence()
             .filter { it.endsWith(".json") && it.startsWith(prefix) }
             .mapNotNull { jsonName ->
@@ -157,7 +157,9 @@ object RustNativeBuildManager {
             require(received == expectedSize) {
                 "Ukuran file native tidak cocok: $received / $expectedSize byte"
             }
-            val actualHash = digest.digest().joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2, "0") }
+            val actualHash = digest.digest().joinToString("") { byte ->
+                (byte.toInt() and 0xff).toString(16).padStart(2, '0')
+            }
             require(actualHash == expectedHash) {
                 "SHA-256 tidak cocok. File dihapus agar library rusak tidak dipakai."
             }
