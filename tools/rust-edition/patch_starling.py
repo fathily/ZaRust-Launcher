@@ -502,7 +502,9 @@ android_lib = root / "crates/horizon-client/src/android_lib.rs"
 replace_once(
     android_lib,
     """static SHARED_FOLDER: OnceLock<PathBuf> = OnceLock::new();""",
-    """static SHARED_FOLDER: OnceLock<PathBuf> = OnceLock::new();\n\n""" + rust_state,
+    """static SHARED_FOLDER: OnceLock<PathBuf> = OnceLock::new();
+
+""" + rust_state,
 )
 
 print("Starling source patches applied.")
