@@ -117,6 +117,19 @@ fun AboutInfoScreen(
                         )
 
                         ButtonIconItem(
+                            icon = painterResource(R.drawable.ic_github),
+                            title = stringResource(R.string.about_starling_title),
+                            text = stringResource(R.string.about_starling_text),
+                            button = {
+                                Button(
+                                    onClick = { openLink("https://github.com/JuanLuci/starling") }
+                                ) {
+                                    Text(text = stringResource(R.string.about_launcher_project_link))
+                                }
+                            }
+                        )
+
+                        ButtonIconItem(
                             icon = painterResource(R.drawable.img_launcher),
                             title = BuildKeys.LAUNCHER_NAME,
                             text = stringResource(R.string.about_launcher_version, BuildConfig.VERSION_NAME),
@@ -160,18 +173,7 @@ fun AboutInfoScreen(
                             }
                         )
 
-                        ButtonIconItem(
-                            icon = painterResource(R.drawable.ic_github),
-                            title = stringResource(R.string.about_starling_title),
-                            text = stringResource(R.string.about_starling_text),
-                            button = {
-                                Button(
-                                    onClick = { openLink("https://github.com/JuanLuci/starling") }
-                                ) {
-                                    Text(text = stringResource(R.string.about_launcher_project_link))
-                                }
-                            }
-                        )
+
                     }
                 }
             }
