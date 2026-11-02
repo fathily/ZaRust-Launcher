@@ -1678,5 +1678,7 @@
     <string name="about_zarust_tiktok">TikTok</string>
     <string name="about_zarust_repository">Repository</string>
     <string name="about_starling_title">Starling Android</string>
-    <string name="about_starling_text">Android port and integration that provides Android support for the Horizon Rust Edition engine</string>
+    <string name="about_starling_text">Starling Android port maintained by JuanLuci; it provides the Android platform integration used by ZaRust Rust Edition. Starling remains a separate upstream project.</string>
+    <string name="about_horizon_title">Horizon Rust Engine</string>
+    <string name="about_horizon_text">Rust-based Minecraft game engine by Ludovic Marie and Horizon contributors. Starling is based on Horizon; ZaRust credits both projects separately.</string>
 </resources>
