@@ -1464,10 +1464,10 @@
     <string name="about_launcher_author_star1xr_text">Author of %s</string>
     <string name="about_launcher_project_link">GitHub Link</string>
     <string name="about_sponsor">Sponsorship Support</string>
-    <string name="disclaimer_title">Unofficial Version</string>
-    <string name="disclaimer_content">This is an unofficial modified version of Zalith Launcher 2.</string>
-    <string name="disclaimer_original_repo">Original Repo</string>
-    <string name="launcher_fork_subtitle">a fork of Zalith Launcher 2</string>
+    <string name="disclaimer_title">ZaRust Launcher</string>
+    <string name="disclaimer_content">ZaRust Launcher is a community-modified launcher maintained by AlfaaBEJIRR. Java Edition is based on Zalith Launcher 2; Rust Edition uses Horizon with Android support from Starling. This is not an official Zalith, Horizon, Mojang, or Microsoft product. TikTok: @alfathgpp.</string>
+    <string name="disclaimer_original_repo">ZaRust Repository</string>
+    <string name="launcher_fork_subtitle">Zalith base • Horizon Rust Edition</string>
     <string name="settings_renderer_external_driver">External Driver</string>
     <string name="settings_renderer_download_turnip">Download Turnip Driver</string>
     <string name="settings_renderer_download_turnip_summary">Select a Turnip driver version and download it from GitHub</string>
@@ -1673,4 +1673,10 @@
     <string name="recorder_notification_title">Recording in progress</string>
     <string name="recorder_notification_text">Game audio and screen are being captured</string>
     <string name="settings_tab_rust_edition">Rust Edition</string>
+    <string name="about_zarust_creator_title">AlfaaBEJIRR</string>
+    <string name="about_zarust_creator_text">Maintainer and developer of ZaRust Launcher</string>
+    <string name="about_zarust_tiktok">TikTok</string>
+    <string name="about_zarust_repository">Repository</string>
+    <string name="about_starling_title">Starling Android</string>
+    <string name="about_starling_text">Android port and integration that provides Android support for the Horizon Rust Edition engine</string>
 </resources>

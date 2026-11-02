@@ -1235,4 +1235,14 @@
     <string name="download_assets_id_not_found">Project tidak ditemukan!</string>
     <string name="download_assets_id_unsupported">Project tidak didukung!</string>
     <string name="settings_launcher_color_theme_style">Gaya Palet</string>
+    <string name="disclaimer_title">ZaRust Launcher</string>
+    <string name="disclaimer_content">ZaRust Launcher adalah launcher komunitas yang dimodifikasi dan dirawat oleh AlfaaBEJIRR. Java Edition memakai basis Zalith Launcher 2; Rust Edition menggunakan Horizon dengan dukungan Android dari Starling. Ini bukan aplikasi resmi Zalith, Horizon, Mojang, atau Microsoft. TikTok: @alfathgpp.</string>
+    <string name="disclaimer_original_repo">Repository ZaRust</string>
+    <string name="launcher_fork_subtitle">Basis Zalith • Horizon Rust Edition</string>
+    <string name="about_zarust_creator_title">AlfaaBEJIRR</string>
+    <string name="about_zarust_creator_text">Pengelola dan pengembang ZaRust Launcher</string>
+    <string name="about_zarust_tiktok">TikTok</string>
+    <string name="about_zarust_repository">Repository</string>
+    <string name="about_starling_title">Starling Android</string>
+    <string name="about_starling_text">Port dan integrasi Android yang menyediakan dukungan Android untuk engine Horizon Rust Edition</string>
 </resources>

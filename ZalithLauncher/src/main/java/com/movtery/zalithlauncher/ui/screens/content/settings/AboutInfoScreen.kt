@@ -64,7 +64,6 @@ import com.movtery.zalithlauncher.library.LibraryInfo
 import com.movtery.zalithlauncher.library.libraryData
 import com.movtery.zalithlauncher.path.URL_COMMUNITY
 import com.movtery.zalithlauncher.path.URL_MCMOD
-import com.movtery.zalithlauncher.path.URL_PROJECT
 import com.movtery.zalithlauncher.path.URL_STAR1XR
 import com.movtery.zalithlauncher.path.URL_SUPPORT
 import com.movtery.zalithlauncher.path.URL_WEBLATE
@@ -104,6 +103,20 @@ fun AboutInfoScreen(
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         ButtonIconItem(
+                            icon = painterResource(R.drawable.ic_github),
+                            title = stringResource(R.string.about_zarust_creator_title),
+                            text = stringResource(R.string.about_zarust_creator_text),
+                            button = {
+                                Button(onClick = { openLink("https://tiktok.com/@alfathgpp") }) {
+                                    Text(text = stringResource(R.string.about_zarust_tiktok))
+                                }
+                                Button(onClick = { openLink("https://github.com/fathily/ZaRust-Launcher") }) {
+                                    Text(text = stringResource(R.string.about_zarust_repository))
+                                }
+                            }
+                        )
+
+                        ButtonIconItem(
                             icon = painterResource(R.drawable.img_launcher),
                             title = BuildKeys.LAUNCHER_NAME,
                             text = stringResource(R.string.about_launcher_version, BuildConfig.VERSION_NAME),
@@ -114,7 +127,7 @@ fun AboutInfoScreen(
                                     Text(text = stringResource(R.string.upgrade_title))
                                 }
                                 Button(
-                                    onClick = { openLink(URL_PROJECT) }
+                                    onClick = { openLink("https://github.com/fathily/ZaRust-Launcher") }
                                 ) {
                                     Text(text = stringResource(R.string.about_launcher_project_link))
                                 }
@@ -141,6 +154,19 @@ fun AboutInfoScreen(
                             button = {
                                 Button(
                                     onClick = { openLink(URL_STAR1XR) }
+                                ) {
+                                    Text(text = stringResource(R.string.about_launcher_project_link))
+                                }
+                            }
+                        )
+
+                        ButtonIconItem(
+                            icon = painterResource(R.drawable.ic_github),
+                            title = stringResource(R.string.about_starling_title),
+                            text = stringResource(R.string.about_starling_text),
+                            button = {
+                                Button(
+                                    onClick = { openLink("https://github.com/JuanLuci/starling") }
                                 ) {
                                     Text(text = stringResource(R.string.about_launcher_project_link))
                                 }

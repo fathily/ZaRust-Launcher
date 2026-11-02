@@ -2,9 +2,6 @@ package dev.horizon.android;
 
 import android.content.Context;
 import android.content.Intent;
-import android.os.Build;
-import android.os.Environment;
-import android.content.pm.PackageManager;
 import android.widget.Toast;
 
 import java.io.File;
@@ -17,15 +14,16 @@ public final class RustEditionBridge {
 
     private RustEditionBridge() {}
 
-    /** Same shared-folder decision used by StarlingActivity.onStorage(). */
+    /**
+     * Keep the complete Rust Edition game tree inside this application's private sandbox.
+     * On Android this is files/rust-edition beneath package com.zarust.launcher.
+     */
     public static File gameHome(Context context) {
-        boolean allowed = Build.VERSION.SDK_INT >= 30
-                ? Environment.isExternalStorageManager()
-                : context.checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                        == PackageManager.PERMISSION_GRANTED;
-        return allowed
-                ? new File(Environment.getExternalStorageDirectory(), "Starling")
-                : context.getFilesDir();
+        File folder = new File(context.getFilesDir(), "rust-edition");
+        if (!folder.isDirectory() && !folder.mkdirs()) {
+            throw new IllegalStateException("Cannot create private ZaRust game directory: " + folder);
+        }
+        return folder;
     }
 
     public static File modsDirectory(Context context) {

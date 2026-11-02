@@ -63,7 +63,12 @@ if not resource_source.is_dir():
     raise SystemExit(f"Starling Android resources are missing: {resource_source}")
 for source in resource_source.rglob("*"):
     if source.is_file():
-        target = app / "res" / source.relative_to(resource_source)
+        relative = source.relative_to(resource_source)
+        # ZaRust keeps Starling.Game checked into its source set so regular
+        # multi-ABI builds can link the manifest without staging Starling.
+        if relative.as_posix() in {"values/themes.xml", "values-v31/themes.xml"}:
+            continue
+        target = app / "res" / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, target)
 

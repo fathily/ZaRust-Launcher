@@ -145,6 +145,28 @@ method = r'''
 '''
 replace_once(activity, anchor, method + anchor)
 
+replace_once(
+    activity,
+    """    static String sharedFolder(Context context) {
+        boolean allowed = Build.VERSION.SDK_INT >= 30
+                ? Environment.isExternalStorageManager()
+                : context.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                        == PackageManager.PERMISSION_GRANTED;
+        String name = context.getPackageName().endsWith(".dev") ? "StarlingDev" : "Starling";
+        return allowed
+                ? new File(Environment.getExternalStorageDirectory(), name).getPath()
+                : null;
+    }""",
+    """    static String sharedFolder(Context context) {
+        // ZaRust owns this game directory; do not create a public Starling folder.
+        File root = new File(context.getFilesDir(), "rust-edition");
+        if (!root.isDirectory() && !root.mkdirs()) {
+            throw new IllegalStateException("Cannot create ZaRust private game directory: " + root);
+        }
+        return root.getAbsolutePath();
+    }""",
+)
+
 oldUpdate = """    public boolean installUpdate(String name) {
         Intent intent = new Intent(Intent.ACTION_VIEW);
         intent.setDataAndType(UpdateProvider.uri(getPackageName(), name), UpdateProvider.TYPE);
