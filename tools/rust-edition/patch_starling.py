@@ -36,6 +36,21 @@ replace_once(
         loadGame();""",
 )
 
+replace_once(
+    activity,
+    """    private void loadGame() {
+        File build = NativeMods.chosen(this, versionName());""",
+    """    private String nativeBuildVersion() {
+        String version = versionName();
+        return version != null && version.endsWith("-debug")
+                ? version.substring(0, version.length() - "-debug".length())
+                : version;
+    }
+
+    private void loadGame() {
+        File build = NativeMods.chosen(this, nativeBuildVersion());""",
+)
+
 anchor = """    /**
      * Loads the game library with this class loader,"""
 method = r'''
