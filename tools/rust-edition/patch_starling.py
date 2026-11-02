@@ -21,6 +21,15 @@ for imp in [
     "import org.json.JSONObject;",
     "import java.nio.charset.StandardCharsets;",
     "import java.util.Locale;",
+    "import android.graphics.drawable.GradientDrawable;",
+    "import android.os.Handler;",
+    "import android.os.Looper;",
+    "import android.view.Gravity;",
+    "import android.view.ViewGroup;",
+    "import android.widget.FrameLayout;",
+    "import android.widget.LinearLayout;",
+    "import android.widget.ProgressBar;",
+    "import android.widget.TextView;",
 ]:
     if imp not in text:
         text = text.replace("import java.io.File;", "import java.io.File;\n" + imp, 1)
@@ -213,8 +222,6 @@ replace_once(
 download_activity = r"""
 
     /** Current first-run download/preparation state, supplied by android_lib.rs. */
-    private static native String zarustDownloadState();
-
     private final Handler zarustHandler = new Handler(Looper.getMainLooper());
     private View zarustDownloadOverlay;
     private TextView zarustDownloadTitle;
