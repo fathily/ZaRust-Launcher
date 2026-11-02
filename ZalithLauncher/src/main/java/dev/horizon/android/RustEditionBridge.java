@@ -27,16 +27,9 @@ public final class RustEditionBridge {
         return folder;
     }
 
-    /**
-     * Starling's accounts::files_root() is private_home()/minecraft.
-     * Keep game options, saves, packs and the download marker in that directory.
-     */
+    /** Starling's game_home(): worlds, options, logs and Rust game configuration. */
     public static File gameHome(Context context) {
-        File folder = new File(storageRoot(context), "minecraft");
-        if (!folder.isDirectory() && !folder.mkdirs()) {
-            throw new IllegalStateException("Cannot create private ZaRust game directory: " + folder);
-        }
-        return folder;
+        return storageRoot(context);
     }
 
     public static File modsDirectory(Context context) {
