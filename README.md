@@ -10,7 +10,7 @@
 
 ## Mods and packs
 
-ZaRust includes selected Starling/Horizon .hmod content mods and provides an import path for .hmod packages. The Rust Edition also accepts .hnmod packages into a separate staging area. **Importing an .hnmod does not activate it yet**: native source mods must be built for the exact Horizon and Horizon Mixins revisions before they can be included in an Android engine build. Java .jar, Fabric, Forge, NeoForge, Iris, and Sodium mods are not automatically compatible.
+ZaRust supports .hmod content mods and imports .hnmod native-source bundles into a separate review/staging area. Reviewed native bundles can be built by GitHub Actions into an Android arm64-v8a engine library; ZaRust's Native Build Manager downloads the version-matched library, verifies its SHA-256, and selects it for the next Rust launch. Locally imported .hnmod files are not executed or built automatically: they must be reviewed and added to the repository's approved native-mod set first. Native mods run with full game access. Java .jar, Fabric, Forge, NeoForge, Iris, and Sodium mods are not automatically compatible.
 
 ## Upstream projects
 
