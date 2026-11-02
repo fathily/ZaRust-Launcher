@@ -272,7 +272,13 @@ fun RustEditionSettingsScreen() {
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Input & Kontrol", style = MaterialTheme.typography.titleMedium)
-                Text("Preferensi disimpan di ZaRust. Integrasi overlay touch Zalith ke jendela native Rust masih perlu adapter input; pilihan Starling tetap memakai input engine.")
+                Text(
+                    if (inputMode == "zalith") {
+                        "Mode Zalith memakai preset tombol dan posisi dari Control Manager, lalu mengonversinya ke format input Rust. Tampilan tombol tetap dirender oleh engine Starling karena game berjalan pada NativeActivity."
+                    } else {
+                        "Mode Starling memakai tata letak dan tombol sentuh bawaan engine Rust."
+                    }
+                )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = inputMode == "zalith",
