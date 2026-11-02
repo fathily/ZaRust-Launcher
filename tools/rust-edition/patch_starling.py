@@ -515,28 +515,73 @@ replace_once(
     """    let home = game_folder(&private, &mut notes);
     let (args, env) = command_line(&private);""",
     """    let home = game_folder(&private, &mut notes);
+    let zarust_root = private.join("rust-edition");
+    let zarust_marker = zarust_root.join(".zarust-controls-active");
+    let starling_backup = zarust_root.join("starling-touch-layout.backup.json");
     let zarust_touch_layout = [
-        private
-            .join("rust-edition")
-            .join("zarust-touch-layout.json"),
+        zarust_root.join("zarust-touch-layout.json"),
         home.join("zarust-touch-layout.json"),
     ]
     .into_iter()
     .find(|path| path.is_file());
+    let target = home.join("touch-layout.json");
+    let temporary = home.join(".touch-layout.zarust.tmp");
+
     if let Some(zarust_touch_layout) = zarust_touch_layout {
-        let target = home.join("touch-layout.json");
-        let temporary = home.join(".touch-layout.zarust.tmp");
+        // Preserve a native Starling layout before the Zalith-generated layout replaces it.
+        if target.is_file() && !zarust_marker.exists() {
+            let _ = std::fs::remove_file(&starling_backup);
+            if let Err(error) = std::fs::copy(&target, &starling_backup) {
+                notes.push(format!(
+                    "ZaRust: could not back up the Starling touch layout: {error}"
+                ));
+            }
+        }
         let applied = std::fs::copy(&zarust_touch_layout, &temporary)
             .and_then(|_| std::fs::rename(&temporary, &target));
         match applied {
-            Ok(_) => notes.push(format!(
-                "ZaRust: applied the selected Zalith control layout to {}",
-                target.display()
-            )),
+            Ok(_) => {
+                if let Err(error) = std::fs::write(&zarust_marker, b"zalith") {
+                    notes.push(format!(
+                        "ZaRust: could not mark the active Zalith controls: {error}"
+                    ));
+                }
+                notes.push(format!(
+                    "ZaRust: applied the selected Zalith control layout to {}",
+                    target.display()
+                ));
+            }
             Err(error) => {
                 let _ = std::fs::remove_file(&temporary);
                 notes.push(format!(
                     "ZaRust: could not apply the selected Zalith control layout: {error}"
+                ));
+            }
+        }
+    } else if zarust_marker.is_file() {
+        // Returning to Starling mode restores its previous custom layout, or its built-in default.
+        let restored = if starling_backup.is_file() {
+            std::fs::copy(&starling_backup, &temporary)
+                .and_then(|_| std::fs::rename(&temporary, &target))
+        } else {
+            std::fs::remove_file(&target).or_else(|error| {
+                if error.kind() == std::io::ErrorKind::NotFound {
+                    Ok(())
+                } else {
+                    Err(error)
+                }
+            })
+        };
+        match restored {
+            Ok(()) => {
+                let _ = std::fs::remove_file(&zarust_marker);
+                let _ = std::fs::remove_file(&starling_backup);
+                notes.push("ZaRust: restored Starling's touch layout".into());
+            }
+            Err(error) => {
+                let _ = std::fs::remove_file(&temporary);
+                notes.push(format!(
+                    "ZaRust: could not restore Starling's touch layout: {error}"
                 ));
             }
         }
