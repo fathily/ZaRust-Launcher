@@ -2,6 +2,7 @@ package dev.horizon.android;
 
 import android.content.Context;
 import android.content.Intent;
+import android.os.Build;
 import android.widget.Toast;
 
 import java.io.File;
@@ -13,6 +14,20 @@ public final class RustEditionBridge {
     private static final String PREFS = "zarust_rust_edition";
 
     private RustEditionBridge() {}
+
+    /**
+     * Rust Edition is bundled only by the arm64 Starling build. Keep the ordinary Java-only
+     * ABI builds from advertising a Rust launch button or opening an Activity without its .so.
+     */
+    public static boolean isAvailable() {
+        if (!BuildConfig.RUST_EDITION_ENABLED || Build.VERSION.SDK_INT < 28) {
+            return false;
+        }
+        for (String abi : Build.SUPPORTED_ABIS) {
+            if ("arm64-v8a".equals(abi)) return true;
+        }
+        return false;
+    }
 
     /**
      * Keep the complete Rust Edition game tree inside this application's private sandbox.
@@ -59,6 +74,14 @@ public final class RustEditionBridge {
     /** Starts Starling in the same application and passes the selected ZaRust account. */
     public static void launch(Context context, Account account) {
         try {
+            if (!isAvailable()) {
+                Toast.makeText(
+                        context,
+                        "Rust Edition membutuhkan APK ZaRust Starling untuk ARM64 dan Android 9 atau lebih baru.",
+                        Toast.LENGTH_LONG
+                ).show();
+                return;
+            }
             if (!RustControlLayoutAdapter.apply(context)) {
                 Toast.makeText(
                         context,
