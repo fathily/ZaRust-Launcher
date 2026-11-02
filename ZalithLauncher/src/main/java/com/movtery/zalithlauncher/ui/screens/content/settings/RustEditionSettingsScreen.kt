@@ -217,8 +217,16 @@ fun RustEditionSettingsScreen() {
                     val manifest = JSONObject(requireNotNull(manifestText) {
                         "Manifest horizon-native.json tidak ditemukan"
                     })
-                    require(manifest.optString("id").isNotBlank()) { "ID mod tidak ditemukan di manifest" }
-                    require(manifest.optString("version").isNotBlank()) { "Versi mod tidak ditemukan di manifest" }
+                    val modId = manifest.optString("id")
+                    require(modId.matches(Regex("[a-z0-9][a-z0-9_-]{0,40}"))) {
+                        "ID mod tidak valid di manifest"
+                    }
+                    require(manifest.optString("version").isNotBlank()) {
+                        "Versi mod tidak ditemukan di manifest"
+                    }
+                    require(archive.getEntry("mixins/$modId/horizon-mixin.toml") != null) {
+                        "Source mixin tidak ditemukan di mixins/$modId/horizon-mixin.toml"
+                    }
                 }
                 val target = File(hnmodImportDir, displayName)
                 if (target.exists() && !target.delete()) error("Tidak bisa mengganti file lama")
