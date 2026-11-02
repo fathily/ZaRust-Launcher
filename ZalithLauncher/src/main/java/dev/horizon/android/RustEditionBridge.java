@@ -7,6 +7,7 @@ import android.widget.Toast;
 
 import java.io.File;
 
+import com.movtery.zalithlauncher.BuildConfig;
 import com.movtery.zalithlauncher.game.account.Account;
 
 /** ZaRust-owned entry point for the embedded Starling game engine. */
