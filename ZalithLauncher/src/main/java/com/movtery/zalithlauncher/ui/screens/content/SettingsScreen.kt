@@ -49,7 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
 import com.movtery.zalithlauncher.R
-import com.movtery.zalithlauncher.BuildConfig
+import dev.horizon.android.RustEditionBridge
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.ui.base.BaseScreen
 import com.movtery.zalithlauncher.ui.components.WarningCard
@@ -154,7 +154,8 @@ private fun TabMenu(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(modifier = Modifier.height(12.dp))
-        settingItems.filter { BuildConfig.RUST_EDITION_ENABLED || it.key != NormalNavKey.Settings.RustEdition }.forEach { item ->
+        val rustEditionAvailable = RustEditionBridge.isAvailable()
+        settingItems.filter { rustEditionAvailable || it.key != NormalNavKey.Settings.RustEdition }.forEach { item ->
             if (item.division) {
                 HorizontalDivider(
                     modifier = Modifier
