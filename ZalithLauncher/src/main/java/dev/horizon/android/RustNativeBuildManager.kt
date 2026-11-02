@@ -91,6 +91,12 @@ object RustNativeBuildManager {
             "Nama native build tidak valid"
         }
         val version = appVersion(context)
+        require(isTrustedAssetUrl(build.metadataUrl, "${build.name}.json")) {
+            "Alamat metadata native build tidak tepercaya"
+        }
+        require(isTrustedAssetUrl(build.libraryUrl, "${build.name}.so")) {
+            "Alamat library native build tidak tepercaya"
+        }
         val metadata = JSONObject(getText(build.metadataUrl))
         require(metadata.optString("version") == version) {
             "Native build ini bukan untuk ZaRust $version"
