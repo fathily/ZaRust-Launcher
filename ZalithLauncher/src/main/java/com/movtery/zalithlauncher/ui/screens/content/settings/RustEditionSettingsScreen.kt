@@ -138,7 +138,7 @@ fun RustEditionSettingsScreen() {
         copySelected(uri, resourcePacksDir, setOf("zip"))
     }
 
-    val gameFilesReady = File(context.filesDir, "starling-files.json").isFile
+    val gameFilesReady = File(File(context.filesDir, "minecraft"), "starling-files.json").isFile
 
     Column(
         modifier = Modifier
