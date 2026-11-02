@@ -1,38 +1,40 @@
 # ZaRust Rust Edition
 
-ZaRust Launcher contains two independent game launch paths in one Android application:
+ZaRust is one Android app with two game paths:
 
-- **Java Edition** remains the existing Zalith/Pojav-based launcher. Its Java runtimes, versions, mods, shader packs, worlds, and settings are not replaced by Rust Edition.
-- **Rust Edition** appears in ZaRust's Game → Versions list. Its resource installer, progress UI, and engine settings live in ZaRust's Jetpack Compose screens. Tapping Play starts only the native Minecraft game surface in a private process of the same `com.zarust.launcher` application; it does not install or open a second launcher app, and Horizon's Play/Mods/Packs/Shaders/Settings launcher pages are bypassed. Rust data, profiles, worlds, native mods, and cache stay in the dedicated `rust-edition/` directory.
+- **Java Edition** continues to use the existing Zalith/Pojav launcher.
+- **Rust Edition** embeds the Android-compatible Starling engine, which runs the Horizon Rust game engine. ZaRust remains the launcher UI; Starling's native activity is used as the game surface, not as a second launcher app.
 
-## Engine and compatibility
+## Upstream and version tracking
 
-Rust Edition is built from the pinned [Horizon Android](https://github.com/Vasysik/horizon-android) source revision `7301f6fdd7f470b11317276e7a11b4dc615c137a`. The engine targets its pinned Minecraft Java 26.3 implementation; it is not a general-purpose launcher for arbitrary Minecraft Java versions.
+The Android build checks out [JuanLuci/Starling](https://github.com/JuanLuci/starling) at the pinned Android-compatible revision 1d45d81bad530e20cfa18e9b47b1d7247b469ea4. This advances the previous pin by four commits.
 
-The initial integrated build targets **arm64-v8a** and **Android 9 / API 28 or newer**. Other Java Edition ABI builds remain available through the existing workflow. The Rust version entry is only shown when the Rust-enabled arm64 build is installed on a compatible device.
+[Horizon Rust](https://github.com/horizon-rust/horizon) is the upstream engine repository. Its current mainline is not a drop-in replacement for the Android port: Android activity glue, JNI, storage setup, and Android build packaging must remain compatible. Mainline changes therefore need to be reviewed and ported through the Android branch rather than blindly replacing the Starling source. The [Vasysik Horizon Android repository](https://github.com/Vasysik/horizon-android) remains a related reference implementation.
 
-Horizon uses native Rust and does not use the Java Edition JRE. Its native `.hmod` mods are a separate format. Fabric, Forge, NeoForge, Quilt, Java `.jar` mods, Iris, and Sodium do not become compatible by copying them into Rust Edition.
+## Mods
 
-## ZaRust UI, settings, and accounts
+- .hmod: content/data mod package. ZaRust imports it into the Rust Edition mod folder.
+- .hnmod: native Rust source bundle. ZaRust validates its ZIP structure and horizon-native.json manifest, then stores it under the app-private rust-edition/imported-hnmod/ folder.
 
-`Settings → Rust Edition` stores the native engine settings in the app-private `rust-edition/android-launcher.json`. The Compose screen owns installation/progress, graphics API, render scale, fullscreen/aspect, input mode, orientation, refresh-rate/performance hints, profile selection, and optional auto-join server. There is no second editable Rust player-name field: the currently selected ZaRust account is the source of truth. A ZaRust Microsoft account's Minecraft access token and refresh token are synchronized over JNI into Horizon's Android Keystore-backed secret store before launch. A ZaRust Local/offline profile is passed to Horizon as the same offline player name. The account type is preserved; a Local account is not silently turned into a Microsoft account. Third-party auth-server accounts are rejected with an explanation rather than creating a second profile. The Java Edition settings and JVM configuration are left untouched.
+**Important:** .hnmod import is staging only at this point. It does not make a native mod active in the running Android engine. Horizon native mods must be built against matching Horizon and Horizon Mixins revisions and included in a compatible engine build. ZaRust does not yet perform that Android native-mod build dynamically. Do not treat a staged package as enabled.
 
-The same screen has toggles for six official [Starling](https://github.com/JuanLuci/starling) Horizon mods: **FPS Counter**, **Keystrokes**, **Far View**, **Minimap**, **Zoom**, and **Recipes**. Their `.hmod` packages are compiled from Starling's pinned source and bundled into the same ZaRust APK, then installed under `rust-edition/horizon-mods/`. The toggles update Horizon's `horizon-mods.txt` and take effect on the next game launch. All six start disabled so the player chooses which features to use; Far View can increase render and memory load and is not a guaranteed FPS boost.
+Java .jar, Fabric, Forge, NeoForge, Iris, and Sodium mods are not automatically compatible with Horizon.
 
-The NativeActivity is only the Vulkan/OpenGL game surface required by Horizon's Android/Winit runtime; it runs in the `:rustgame` process so closing the game returns to the still-running ZaRust launcher process.
+## Accounts, storage, and controls
 
-## Storage isolation
+ZaRust passes the selected profile to the embedded engine. Rust Edition uses its own app-private data/runtime storage and does not reuse Java Edition's versions/, mods/, or Java runtime directories.
 
-The integration patches Horizon's Android data and cache roots into the app-private `rust-edition/` directory. The Rust game files therefore do not share Java Edition's `versions/`, `mods/`, `saves/`, or runtime directories.
-
-The Rust native engine is staged only during the dedicated workflow. The upstream engine source is checked out at the pinned revision during CI; its binary and generated engine data are not committed to this repository.
+The Rust settings screen exposes the input-mode preference and Rust configuration/import controls. The actual Zalith touch-overlay-to-native-engine input adapter still needs end-to-end validation; do not assume the saved preference alone guarantees that Zalith touch controls are active inside the Rust game.
 
 ## Build
 
-Run **Actions → Build ZaRust with Rust Edition → Run workflow** and choose Debug or Release. This first integration workflow builds arm64-v8a only, prepares Horizon's pinned resource tables, compiles the native library, stages its public engine data, and then builds the combined ZaRust APK with the Rust Edition feature flag.
+The dedicated GitHub Actions workflow **Build ZaRust with Starling Rust Edition** builds the Android native engine and then packages it into the ZaRust APK. Current Rust Edition target: **arm64-v8a**. The ordinary Java Edition build remains separate.
 
-The ordinary **Build APK** workflow is unchanged and continues to produce Java Edition builds without bundling the Rust native engine.
+## Credits and licenses
 
-## Upstream credits and licenses
+- [Zalith Launcher 2](https://github.com/ZalithLauncher/ZalithLauncher2)
+- [Horizon Rust](https://github.com/horizon-rust/horizon) — MIT
+- [Starling](https://github.com/JuanLuci/starling) — see its bundled license and notices
+- [Vasysik Horizon Android](https://github.com/Vasysik/horizon-android)
 
-Rust Edition uses [Horizon Android](https://github.com/Vasysik/horizon-android), copyright © 2026 Ludovic Marie and Horizon contributors, under the MIT License. It also bundles official `.hmod` mods from [JuanLuci/Starling](https://github.com/JuanLuci/starling), pinned to `1d53294cf27dbe676197fdd826669d6b7030d2e1`, under its MIT License. Both licenses and Horizon's third-party notices are included under `assets/rust-edition/`. The rest of ZaRust continues to follow the licenses of its respective upstream components.
+The app includes upstream license/third-party notices for components that are staged into the APK. See the repository's [LICENSE](./LICENSE).
