@@ -529,33 +529,41 @@ replace_once(
 
     if let Some(zarust_touch_layout) = zarust_touch_layout {
         // Preserve a native Starling layout before the Zalith-generated layout replaces it.
-        if target.is_file() && !zarust_marker.exists() {
+        let backup_ready = if target.is_file() && !zarust_marker.exists() {
             let _ = std::fs::remove_file(&starling_backup);
-            if let Err(error) = std::fs::copy(&target, &starling_backup) {
-                notes.push(format!(
-                    "ZaRust: could not back up the Starling touch layout: {error}"
-                ));
-            }
-        }
-        let applied = std::fs::copy(&zarust_touch_layout, &temporary)
-            .and_then(|_| std::fs::rename(&temporary, &target));
-        match applied {
-            Ok(_) => {
-                if let Err(error) = std::fs::write(&zarust_marker, b"zalith") {
+            match std::fs::copy(&target, &starling_backup) {
+                Ok(_) => true,
+                Err(error) => {
                     notes.push(format!(
-                        "ZaRust: could not mark the active Zalith controls: {error}"
+                        "ZaRust: refusing to replace controls because the Starling layout could not be backed up: {error}"
+                    ));
+                    false
+                }
+            }
+        } else {
+            true
+        };
+        if backup_ready {
+            let applied = std::fs::copy(&zarust_touch_layout, &temporary)
+                .and_then(|_| std::fs::rename(&temporary, &target));
+            match applied {
+                Ok(_) => {
+                    if let Err(error) = std::fs::write(&zarust_marker, b"zalith") {
+                        notes.push(format!(
+                            "ZaRust: could not mark the active Zalith controls: {error}"
+                        ));
+                    }
+                    notes.push(format!(
+                        "ZaRust: applied the selected Zalith control layout to {}",
+                        target.display()
                     ));
                 }
-                notes.push(format!(
-                    "ZaRust: applied the selected Zalith control layout to {}",
-                    target.display()
-                ));
-            }
-            Err(error) => {
-                let _ = std::fs::remove_file(&temporary);
-                notes.push(format!(
-                    "ZaRust: could not apply the selected Zalith control layout: {error}"
-                ));
+                Err(error) => {
+                    let _ = std::fs::remove_file(&temporary);
+                    notes.push(format!(
+                        "ZaRust: could not apply the selected Zalith control layout: {error}"
+                    ));
+                }
             }
         }
     } else if zarust_marker.is_file() {
