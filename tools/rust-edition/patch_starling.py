@@ -515,10 +515,15 @@ replace_once(
     """    let home = game_folder(&private, &mut notes);
     let (args, env) = command_line(&private);""",
     """    let home = game_folder(&private, &mut notes);
-    let zarust_touch_layout = private
-        .join("rust-edition")
-        .join("zarust-touch-layout.json");
-    if zarust_touch_layout.is_file() {
+    let zarust_touch_layout = [
+        private
+            .join("rust-edition")
+            .join("zarust-touch-layout.json"),
+        home.join("zarust-touch-layout.json"),
+    ]
+    .into_iter()
+    .find(|path| path.is_file());
+    if let Some(zarust_touch_layout) = zarust_touch_layout {
         let target = home.join("touch-layout.json");
         let temporary = home.join(".touch-layout.zarust.tmp");
         let applied = std::fs::copy(&zarust_touch_layout, &temporary)
@@ -538,7 +543,5 @@ replace_once(
     }
     let (args, env) = command_line(&private);""",
 )
-
-print("Starling source patches applied.")
 
 print("Starling source patches applied.")
