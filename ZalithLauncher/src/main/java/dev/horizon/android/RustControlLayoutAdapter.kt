@@ -82,7 +82,7 @@ object RustControlLayoutAdapter {
                         place(
                             x = position.optInt("x", 5000) / 10000.0,
                             y = position.optInt("y", 5000) / 10000.0,
-                            size = buttonRadius(button.optJSONObject("buttonSize"), minSide, display.widthPixels, display.heightPixels),
+                            size = buttonRadius(button.optJSONObject("buttonSize"), minSide, display.widthPixels, display.heightPixels, display.density),
                             show = "on"
                         )
                     )
@@ -99,7 +99,7 @@ object RustControlLayoutAdapter {
                     place(
                         position.optInt("x", 1200) / 10000.0,
                         position.optInt("y", 7330) / 10000.0,
-                        (4.5 * (sizePercent / 10000.0) * 2.0).coerceIn(0.3, 2.5),
+                        (4.5 * (sizePercent / 10000.0)).coerceIn(0.3, 2.5),
                         "on"
                     )
                 }
@@ -111,7 +111,7 @@ object RustControlLayoutAdapter {
                     val buttonSize = movementButtons.firstOrNull()?.optJSONObject("buttonSize")
                     place(
                         x, y,
-                        (buttonRadius(buttonSize, minSide, display.widthPixels, display.heightPixels) * 1.8).coerceIn(0.5, 2.5),
+                        (buttonRadius(buttonSize, minSide, display.widthPixels, display.heightPixels, display.density) * 1.8).coerceIn(0.5, 2.5),
                         "on"
                     )
                 }
@@ -174,20 +174,19 @@ object RustControlLayoutAdapter {
         size: JSONObject?,
         minSide: Int,
         screenWidth: Int,
-        screenHeight: Int
+        screenHeight: Int,
+        density: Float
     ): Double {
         if (size == null) return 0.65
         val widthPercent = size.optInt("widthPercentage", 1200) / 10000.0
         val heightPercent = size.optInt("heightPercentage", 1200) / 10000.0
         val widthReference = if (size.optString("widthReference") == "screen_width") screenWidth else screenHeight
         val heightReference = if (size.optString("heightReference") == "screen_width") screenWidth else screenHeight
-        val diameter = max(widthPercent * widthReference, heightPercent * heightReference)
-        val type = size.optString("type", "percentage")
-        val diameterPx = if (type == "dp") {
-            max(size.optDouble("widthDp", 50.0), size.optDouble("heightDp", 50.0)) *
-                (minSide / screenHeight.toDouble())
+        val percentageDiameter = max(widthPercent * widthReference, heightPercent * heightReference)
+        val diameterPx = if (size.optString("type") == "dp") {
+            max(size.optDouble("widthDp", 50.0), size.optDouble("heightDp", 50.0)) * density
         } else {
-            diameter
+            percentageDiameter
         }
         return (4.5 * diameterPx / minSide).coerceIn(0.3, 2.5)
     }
