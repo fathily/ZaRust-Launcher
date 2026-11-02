@@ -456,14 +456,53 @@ replace_once(
         // The world was saved when the game left the screen""",
 )
 
+rust_state = r"""
+/// A small status API polled by ZaRust's Android progress surface.
+#[unsafe(no_mangle)]
+extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_zarustDownloadState(
+    mut env: jni::JNIEnv,
+    _class: jni::objects::JClass,
+) -> jni::sys::jstring {
+    let state = match horizon_client::preparer::stage() {
+        horizon_client::preparer::Stage::Java(done, total) => {
+            format!("java|{done}|{total}")
+        }
+        horizon_client::preparer::Stage::Unpacking => "unpacking".to_owned(),
+        horizon_client::preparer::Stage::Preparing(line) => {
+            format!("preparing|{}", line.replace('|', "/").replace('\n', " "))
+        }
+        horizon_client::preparer::Stage::Done => "done".to_owned(),
+        horizon_client::preparer::Stage::Failed(error) => {
+            format!("failed|{}", error.replace('|', "/").replace('\n', " "))
+        }
+        horizon_client::preparer::Stage::Idle => {
+            match horizon_client::accounts::files() {
+                horizon_client::accounts::Files::Missing => "missing".to_owned(),
+                horizon_client::accounts::Files::Checking => "checking".to_owned(),
+                horizon_client::accounts::Files::Ready => "ready".to_owned(),
+                horizon_client::accounts::Files::Failed(error) => {
+                    format!("failed|{}", error.replace('|', "/").replace('\n', " "))
+                }
+                horizon_client::accounts::Files::Downloading(progress) => format!(
+                    "downloading|{}|{}|{}|{}",
+                    progress.files, progress.files_total, progress.bytes, progress.bytes_total
+                ),
+            }
+        }
+    };
+
+    match env.new_string(state) {
+        Ok(value) => value.into_raw(),
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+"""
+
 android_lib = root / "crates/horizon-client/src/android_lib.rs"
-android_text = android_lib.read_text(encoding="utf-8")
 replace_once(
     android_lib,
     """static SHARED_FOLDER: OnceLock<PathBuf> = OnceLock::new();""",
-    """static SHARED_FOLDER: OnceLock<PathBuf> = OnceLock::new();
-
-""" + rustState,
+    """static SHARED_FOLDER: OnceLock<PathBuf> = OnceLock::new();\n\n""" + rust_state,
 )
 
 print("Starling source patches applied.")
