@@ -84,7 +84,8 @@ import com.movtery.zalithlauncher.ui.AndroidStringText
 import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.ui.components.BackgroundCard
 import com.movtery.zalithlauncher.ui.components.CardTitleLayout
-import com.movtery.zalithlauncher.ui.components.SimpleAlertDialog
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import com.movtery.zalithlauncher.ui.components.TextRailItem
 import com.movtery.zalithlauncher.ui.screens.BackStackNavKey
 import com.movtery.zalithlauncher.ui.screens.NestedNavKey
@@ -154,17 +155,42 @@ fun MainScreen(
     val appContext = androidx.compose.ui.platform.LocalContext.current
 
     if (!showDisclaimer) {
-        SimpleAlertDialog(
-            title = stringResource(R.string.disclaimer_title),
-            text = stringResource(R.string.disclaimer_content),
-            confirmText = stringResource(R.string.generic_got_it),
-            dismissText = stringResource(R.string.disclaimer_original_repo),
-            onConfirm = {
-                AllSettings.disclaimerAccepted.save(true)
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text(text = stringResource(R.string.disclaimer_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(text = stringResource(R.string.disclaimer_content))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(
+                            onClick = {
+                                val intent = android.content.Intent(
+                                    android.content.Intent.ACTION_VIEW,
+                                    android.net.Uri.parse("https://www.tiktok.com/@alfathgpp")
+                                )
+                                appContext.startActivity(intent)
+                            }
+                        ) {
+                            Text(text = stringResource(R.string.about_zarust_tiktok))
+                        }
+                        TextButton(
+                            onClick = {
+                                val intent = android.content.Intent(
+                                    android.content.Intent.ACTION_VIEW,
+                                    android.net.Uri.parse("https://github.com/fathily/ZaRust-Launcher")
+                                )
+                                appContext.startActivity(intent)
+                            }
+                        ) {
+                            Text(text = stringResource(R.string.about_zarust_repository))
+                        }
+                    }
+                }
             },
-            onDismiss = {
-                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://github.com/fathily/ZaRust-Launcher"))
-                appContext.startActivity(intent)
+            confirmButton = {
+                TextButton(onClick = { AllSettings.disclaimerAccepted.save(true) }) {
+                    Text(text = stringResource(R.string.generic_got_it))
+                }
             }
         )
     }
