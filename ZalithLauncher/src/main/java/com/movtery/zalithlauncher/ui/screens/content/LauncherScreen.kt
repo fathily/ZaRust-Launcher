@@ -755,20 +755,22 @@ private fun RightMenuContent(
             }
         )
 
-        launchButton(
-            Modifier
-                .fillMaxWidth()
-                .constrainAs(rustButton) {
-                    bottom.linkTo(parent.bottom, margin = 8.dp)
+        if (RustEditionBridge.isAvailable()) {
+            launchButton(
+                Modifier
+                    .fillMaxWidth()
+                    .constrainAs(rustButton) {
+                        bottom.linkTo(parent.bottom, margin = 8.dp)
+                    }
+                    .padding(PaddingValues(horizontal = 12.dp)),
+                {
+                    onLaunchRustEdition(account)
+                },
+                {
+                    MarqueeText(text = "Play Rust Edition · Starling")
                 }
-                .padding(PaddingValues(horizontal = 12.dp)),
-            {
-                onLaunchRustEdition(account)
-            },
-            {
-                MarqueeText(text = "Play Rust Edition · Starling")
-            }
-        )
+            )
+        }
     }
 }
 
