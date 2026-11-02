@@ -1,114 +1,41 @@
+# ZaRust Launcher
 
-# Zalith Launcher 2+ (PLUS)
+> **Unofficial community project.** ZaRust combines the Zalith Launcher Android experience with a Rust Edition powered by the Horizon engine and its Android port, Starling. It is not an official Zalith, Horizon, Mojang, or Microsoft product.
 
-[**「English」**](./README.md) | [中文（简体）](./README_ZH_CN.md) | [中文（台灣）](./README_ZH_TW.md) | [Türkçe](./README_TR.md)
+## What is ZaRust?
 
-> **⚠️ UNOFFICIAL MODIFIED VERSION**
-> 
-> This is an unofficial fork of [Zalith Launcher 2](https://github.com/ZalithLauncher/ZalithLauncher2). This project is **not affiliated with or endorsed by the official Zalith Launcher project**.
+- **Java Edition:** keeps the existing Zalith/Pojav-based launcher and its Java game setup.
+- **Rust Edition:** adds the Horizon Rust game engine inside the same ZaRust app. ZaRust owns the launcher screens, account hand-off, Rust settings, and mod import UI; the native engine supplies the in-game rendering surface.
+- **Starling:** provides the Android integration layer used to run Horizon on Android. ZaRust embeds that Android engine instead of asking players to install a second launcher.
 
-**Zalith Launcher 2+** is a community-modified launcher for **Android devices** tailored for [Minecraft: Java Edition](https://www.minecraft.net/). It builds upon the foundation of [Zalith Launcher 2](https://github.com/ZalithLauncher/ZalithLauncher2), utilizing [PojavLauncher](https://github.com/PojavLauncherTeam/PojavLauncher/tree/v3_openjdk/app_pojavlauncher/src/main/jni) as its core launching engine with a modern UI built using **Jetpack Compose** and **Material Design 3**.
+## Mods and packs
 
-## 🦀 Rust Edition (Horizon Android)
+ZaRust includes selected Starling/Horizon .hmod content mods and provides an import path for .hmod packages. The Rust Edition also accepts .hnmod packages into a separate staging area. **Importing an .hnmod does not activate it yet**: native source mods must be built for the exact Horizon and Horizon Mixins revisions before they can be included in an Android engine build. Java .jar, Fabric, Forge, NeoForge, Iris, and Sodium mods are not automatically compatible.
 
-ZaRust adds Horizon's native Rust engine as an integrated game edition, with the active ZaRust account shared automatically and six optional official Starling `.hmod` mods managed from ZaRust Settings. The native activity is used only as the game surface; no separate Starling/Horizon launcher app is installed. Java Edition remains independent. See [Rust Edition architecture, compatibility, accounts, mods, storage separation, and build instructions](./RUST_EDITION.md). The initial Rust build targets arm64-v8a / Android 9+.
+## Upstream projects
 
-## Some Statistics
+- [Zalith Launcher 2](https://github.com/ZalithLauncher/ZalithLauncher2) — Android launcher foundation.
+- [Horizon Rust](https://github.com/horizon-rust/horizon) — Rust Minecraft game engine and mod formats.
+- [Starling Android](https://github.com/JuanLuci/starling) — Android port/integration used by ZaRust.
+- [Horizon Android (Vasysik)](https://github.com/Vasysik/horizon-android) — related Android implementation and reference.
 
-July 14, 2026:
-Excluding merges, 3 authors have pushed 265 commits to main and 266 commits to all branches.
+ZaRust tracks the Android-compatible Starling branch separately from Horizon's desktop/mainline repository. Mainline Horizon changes are reviewed for Android compatibility before they are included.
 
-On main, 288 files have changed and there have been 10.634 additions and 3.095 deletions
+## Builds and updates
 
-## 📋 What's New in This Fork?
+Use the [Actions](https://github.com/fathily/ZaRust-Launcher/actions) tab for CI builds. Rust Edition builds currently target **arm64-v8a**. Follow this repository or watch its Releases to receive updates about combined ZaRust APK builds and upstream compatibility notices.
 
-This fork aims to enhance and customize the original Zalith Launcher 2 experience. Some key improvements include:
+## Credits
 
-- [x] Cape system
-- [x] Fixes
-- [x] Offline accounts
-- [x] Chroma names
-- [x] Shortcuts in main screen
-- [x] Importing/exporting settings
-- [x] Importing/exporting accounts along with capes and skins, chroma names
-- [x] Implemented mobileglues with config
-- [x] Config UI remake
+- Zalith Launcher 2 contributors
+- Horizon Rust contributors
+- JuanLuci and Starling contributors
+- Vasysik and Horizon Android contributors
 
-more that i cant count...
+Maintained/customized by **AlfaaBEJIRR**.
 
+TikTok: [@alfathgpp](https://tiktok.com/@alfathgpp)
 
-## 🔗 Upstream Project
+## License
 
-This project is derived from the excellent work of the Zalith Launcher team:
-- **Original Project:** [ZalithLauncher2](https://github.com/ZalithLauncher/ZalithLauncher2)
-- **Original License:** GPL-3.0
-
-Please visit the upstream project if you want the official, unmodified version.
-
-## 🌐 Language and Translation Support
-
-This fork uses translations of Zalith Launcher 2. To contribute translations or improvements, please consider contributing upstream to the [Zalith Launcher 2 Weblate project](https://hosted.weblate.org/projects/zalithlauncher2).
-
-## 📦 Build Instructions (For Developers)
-
-### Requirements
-
-* Android Studio **Bumblebee** or newer
-* Android SDK:
-  * **Minimum API level**: 26
-  * **Target API level**: 35
-* JDK 11
-
-### Build Steps
-
-```bash
-git clone https://github.com/Star1xr/ZalithLauncher2Plus.git
-# Open the project in Android Studio and build
-```
-
-## 📜 License
-
-This project is licensed under the **[GPL-3.0 license](LICENSE)**, inherited from the upstream Zalith Launcher 2 project.
-
-### Important Terms
-
-**Contributions and Attribution**
-   - All modifications are clearly documented and attributed to this fork
-   - The upstream project is properly credited
-
-## 📦 Open Source Libraries and Licenses
-
-This project inherits all dependencies from Zalith Launcher 2. Please refer to the original project's [README](https://github.com/ZalithLauncher/ZalithLauncher2/blob/main/README.md) for the complete list of open source libraries and their licenses.
-
-## 🤝 Contributing
-
-This is a community fork. Before contributing:
-
-1. Review the [CONTRIBUTING.md](./CONTRIBUTING.md) guidelines
-2. Check existing issues and pull requests
-3. Follow the code style and conventions
-4. Document your changes clearly
-
-## ⚠️ Support and Disclaimers
-
-- This is an **unofficial fork**. Official support should be sought from the [upstream Zalith Launcher 2 project](https://github.com/ZalithLauncher/ZalithLauncher2)
-- Please report bugs to this repository's issue tracker
-- For upstream-related issues, consider reporting to the original project first
-- Use at your own risk. This fork comes with no official warranty or support
-
-## 🔒 Security and Privacy
-
-- Always download from this official repository
-- Be cautious of third-party websites claiming to distribute this software
-- Protect your personal information and credentials
-- Report security issues responsibly through the issue tracker
-
-## 📞 Contact & Links
-
-- **Original Project:** https://github.com/ZalithLauncher/ZalithLauncher2
-- **This Fork:** https://github.com/Star1xr/ZalithLauncher2Plus
-
----
-
-**Zalith Launcher 2** is the original project created and maintained by the Zalith Launcher team.  
-**Zalith Launcher 2+** is an unofficial community fork created to provide enhanced features and modifications.
+ZaRust follows the upstream Zalith Launcher license and the licenses of the bundled components. See [LICENSE](./LICENSE), the bundled third-party notices, and the upstream repositories for their respective terms.
