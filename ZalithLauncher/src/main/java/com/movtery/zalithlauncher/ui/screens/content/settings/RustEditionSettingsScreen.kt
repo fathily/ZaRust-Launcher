@@ -51,19 +51,19 @@ private val rustConfigDocuments = listOf(
         "Horizon Graphics",
         "horizon-graphics.txt",
         "Pengaturan renderer Horizon: LOD distance, culling, chunk upload budget, worker threads, resolution scale, FXAA, battery mode, frame pacing, overlay FPS, dan graphics API.",
-        "preset:custom\nlodDistance:128\nfarDetail:full\ncaveCulling:true\nentityCulling:true\nchunkUpdates:0\nuploadBudgetKiB:0\nsky:true\nfog:true\nweather:true\nanimatedTextures:true\npresentMode:auto\nframePacing:efficient\nworkers:0\noverlay:off\nresolutionScale:100\nfxaa:false\nbatteryMode:false\ngraphicsApi:auto\n"
+
     ),
     RustConfigDocument(
         "Controller & On-screen Keyboard",
         "horizon-controller.txt",
         "Pengaturan gamepad Horizon: enable, vibration, adaptive triggers, deadzone, sensitivity, button glyph, menu navigation, dan keyboard virtual. Tetap gunakan pilihan input Zalith / Starling di atas.",
-        "enabled:true\nvibration:true\nadaptiveTriggers:false\nlightbar:auto\nlookSensitivity:1.0\ninvertX:false\ninvertY:false\nmoveDeadzone:0.15\nlookDeadzone:0.15\ntriggerThreshold:0.1\ntoggleSneak:false\nglyphs:auto\nmenuNavigation:auto\nkeyboard:system\n"
+
     ),
     RustConfigDocument(
         "Horizon Extras",
         "horizon-extras.txt",
         "Fitur tambahan Horizon: fullbright, dynamic lights, zoom, FPS counter, keystrokes/CPS, minimap, auto reconnect, mouse tweaks, dan item sorting.",
-        "fullbright:false\ndynamicLights:false\nzoom:false\nzoomKey:key.keyboard.left.control\nzoomLevel:4\nzoomSmooth:true\nzoomSensitivity:false\nfps:false\nfpsCorner:top_left\nfpsLows:false\nkeystrokes:false\nkeystrokesCorner:top_left\nkeystrokesCps:false\nminimap:false\nminimapCorner:top_right\nminimapSize:96\nminimapShape:square\nminimapZoom:1.0\nminimapRotate:false\nautoReconnect:false\nmouseTweaks:false\nmouseTweaksWheel:false\nsort:false\nsortKey:key.keyboard.r\n"
+
     ),
     RustConfigDocument(
         "Horizon Mods",
@@ -162,7 +162,7 @@ fun RustEditionSettingsScreen() {
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Input & Kontrol", style = MaterialTheme.typography.titleMedium)
-                Text("Pilih satu sistem touch control agar tidak ada dua overlay aktif bersamaan.")
+                Text("Preferensi disimpan di ZaRust. Integrasi overlay touch Zalith ke jendela native Rust masih perlu adapter input; pilihan Starling tetap memakai input engine.")
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = inputMode == "zalith",
