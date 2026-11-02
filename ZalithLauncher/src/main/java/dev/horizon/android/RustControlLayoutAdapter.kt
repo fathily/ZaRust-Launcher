@@ -49,7 +49,7 @@ object RustControlLayoutAdapter {
             return true
         }
 
-        try {
+        return try {
             val selectedFile = resolveSelectedLayout()
                 ?: run {
                     Log.e(TAG, "No valid Zalith control layout was found; refusing to launch with Starling defaults")
