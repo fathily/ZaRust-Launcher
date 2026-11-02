@@ -147,7 +147,7 @@ fun RustEditionSettingsScreen() {
                 "Format tidak didukung. Gunakan: " + accepted.joinToString(", ")
             }
             require(destination.isDirectory || destination.mkdirs()) {
-                "Tidak bisa membuat folder \${destination.absolutePath}"
+                "Tidak bisa membuat folder ${destination.absolutePath}"
             }
             val target = File(destination, name)
             val temporary = File(destination, name + ".partial")
@@ -256,8 +256,8 @@ fun RustEditionSettingsScreen() {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Status Game", style = MaterialTheme.typography.titleMedium)
                 Text(if (gameFilesReady) "File game sudah terpasang." else "File game belum terdeteksi. Tekan Play Rust untuk menyiapkan file game resmi.")
-                Text("Akun: " + (account?.let { "\${it.username} · \${it.accountType ?: "Local"}" } ?: "Offline"))
-                Text("Folder game: \${gameHome.absolutePath}", style = MaterialTheme.typography.bodySmall)
+                Text("Akun: " + (account?.let { "${it.username} · ${it.accountType ?: "Local"}" } ?: "Offline"))
+                Text("Folder game: ${gameHome.absolutePath}", style = MaterialTheme.typography.bodySmall)
             }
         }
 
@@ -314,14 +314,14 @@ fun RustEditionSettingsScreen() {
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 10,
                     maxLines = 24,
-                    label = { Text("Isi \${selected.fileName}") }
+                    label = { Text("Isi ${selected.fileName}") }
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = {
                         pickerMessage = runCatching {
                             writeRustConfig(gameHome, selected, editorText)
-                            "Tersimpan: \${selected.fileName}"
-                        }.getOrElse { "Gagal menyimpan: \${it.message}" }
+                            "Tersimpan: ${selected.fileName}"
+                        }.getOrElse { "Gagal menyimpan: ${it.message}" }
                     }) {
                         Text("Simpan Pengaturan")
                     }
@@ -493,7 +493,7 @@ private fun readRustConfig(home: File, document: RustConfigDocument): String {
 }
 
 private fun writeRustConfig(home: File, document: RustConfigDocument, content: String) {
-    require(home.isDirectory || home.mkdirs()) { "Folder game tidak dapat dibuat: \${home.absolutePath}" }
+    require(home.isDirectory || home.mkdirs()) { "Folder game tidak dapat dibuat: ${home.absolutePath}" }
     val target = File(home, document.fileName)
     val temporary = File(home, document.fileName + ".partial")
     FileOutputStream(temporary).use { output ->
@@ -502,10 +502,10 @@ private fun writeRustConfig(home: File, document: RustConfigDocument, content: S
     }
     if (target.exists() && !target.delete()) {
         temporary.delete()
-        error("Tidak dapat mengganti \${target.name}")
+        error("Tidak dapat mengganti ${target.name}")
     }
     check(temporary.renameTo(target)) {
         temporary.delete()
-        "Gagal menyimpan \${target.name}"
+        "Gagal menyimpan ${target.name}"
     }
 }
