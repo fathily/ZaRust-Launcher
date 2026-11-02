@@ -18,8 +18,21 @@ public final class RustEditionBridge {
      * Keep the complete Rust Edition game tree inside this application's private sandbox.
      * On Android this is files/rust-edition beneath package com.zarust.launcher.
      */
-    public static File gameHome(Context context) {
+    /** Root used by Starling for accounts, caches and process-private state. */
+    public static File storageRoot(Context context) {
         File folder = new File(context.getFilesDir(), "rust-edition");
+        if (!folder.isDirectory() && !folder.mkdirs()) {
+            throw new IllegalStateException("Cannot create private ZaRust storage directory: " + folder);
+        }
+        return folder;
+    }
+
+    /**
+     * Starling's accounts::files_root() is private_home()/minecraft.
+     * Keep game options, saves, packs and the download marker in that directory.
+     */
+    public static File gameHome(Context context) {
+        File folder = new File(storageRoot(context), "minecraft");
         if (!folder.isDirectory() && !folder.mkdirs()) {
             throw new IllegalStateException("Cannot create private ZaRust game directory: " + folder);
         }
