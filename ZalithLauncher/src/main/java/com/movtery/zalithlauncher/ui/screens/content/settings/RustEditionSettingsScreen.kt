@@ -1,5 +1,7 @@
 package com.movtery.zalithlauncher.ui.screens.content.settings
 
+import android.content.Intent
+import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -14,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -24,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -31,10 +35,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.movtery.zalithlauncher.game.account.AccountsManager
 import dev.horizon.android.RustEditionBridge
+import dev.horizon.android.RustNativeBuild
+import dev.horizon.android.RustNativeBuildManager
 import java.io.File
 import java.io.FileOutputStream
 import java.util.zip.ZipFile
 import org.json.JSONObject
+import kotlinx.coroutines.launch
 
 private data class RustConfigDocument(
     val title: String,
@@ -85,6 +92,14 @@ fun RustEditionSettingsScreen() {
     var editorText by remember {
         mutableStateOf(readRustConfig(RustEditionBridge.gameHome(context), rustConfigDocuments[0]))
     }
+    val coroutineScope = rememberCoroutineScope()
+    val nativeAppVersion = remember { RustNativeBuildManager.appVersion(context) }
+    var nativeBuilds by remember { mutableStateOf<List<RustNativeBuild>>(emptyList()) }
+    var nativeBuildLoading by remember { mutableStateOf(false) }
+    var nativeBuildInstalling by remember { mutableStateOf<String?>(null) }
+    var nativeBuildProgress by remember { mutableStateOf(0f) }
+    var nativeBuildMessage by remember { mutableStateOf<String?>(null) }
+    var activeNativeBuild by remember { mutableStateOf(RustNativeBuildManager.currentBuild(context)) }
 
     val gameHome = RustEditionBridge.gameHome(context)
     val modsDir = RustEditionBridge.modsDirectory(context)
@@ -96,6 +111,28 @@ fun RustEditionSettingsScreen() {
 
     LaunchedEffect(selectedDocument, gameHome.absolutePath) {
         editorText = readRustConfig(gameHome, selected)
+    }
+
+    fun refreshNativeBuilds() {
+        coroutineScope.launch {
+            nativeBuildLoading = true
+            val result = runCatching { RustNativeBuildManager.list(context) }
+            result.onSuccess {
+                nativeBuilds = it
+                nativeBuildMessage = if (it.isEmpty()) {
+                    "Belum ada build native untuk ZaRust $nativeAppVersion."
+                } else {
+                    "Ditemukan ${it.size} build yang cocok dengan ZaRust $nativeAppVersion."
+                }
+            }.onFailure {
+                nativeBuildMessage = it.message ?: "Gagal memuat daftar native build."
+            }
+            nativeBuildLoading = false
+        }
+    }
+
+    LaunchedEffect(nativeAppVersion) {
+        refreshNativeBuilds()
     }
 
     fun copySelected(uri: android.net.Uri?, destination: File, accepted: Set<String>) {
@@ -333,11 +370,108 @@ fun RustEditionSettingsScreen() {
                 Text(hnmodImportDir.absolutePath, style = MaterialTheme.typography.bodySmall)
                 Button(onClick = { hnmodPicker.launch(arrayOf("*/*")) }) { Text("Import .HNMOD") }
                 Text(
-                    "Catatan: impor belum mengaktifkan mod di game. .hnmod perlu dikompilasi menjadi native engine build yang cocok dengan revisi Horizon dan Horizon Mixins; build Android dinamis belum tersedia.",
+                    "File yang diimpor disimpan di perangkat. Agar bisa dibangun di cloud, bundle-nya harus lebih dulu direview dan dimasukkan ke folder native-mods repository.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text("Folder native runtime: ${nativeDir.absolutePath}", style = MaterialTheme.typography.bodySmall)
+            }
+        }
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Native Build Manager · Android ARM64", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Build native Horizon dihasilkan oleh GitHub Actions untuk versi ZaRust yang cocok. Setelah diunduh dan diverifikasi, Starling memuat library ini pada Rust launch berikutnya.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text("Versi target: $nativeAppVersion")
+                Text(
+                    activeNativeBuild?.let { "Aktif pada launch berikutnya: $it" }
+                        ?: "Belum ada native build tambahan yang dipilih."
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { refreshNativeBuilds() }, enabled = !nativeBuildLoading) {
+                        Text(if (nativeBuildLoading) "Memuat..." else "Refresh Build")
+                    }
+                    TextButton(onClick = {
+                        val uri = Uri.parse("https://github.com/fathily/ZaRust-Launcher/issues/new")
+                            .buildUpon()
+                            .appendQueryParameter("template", "rust-native-build.yml")
+                            .appendQueryParameter("title", "[ZaRust native build]")
+                            .appendQueryParameter(
+                                "body",
+                                "### ZaRust app version\n$nativeAppVersion\n\n### Native mod IDs\nwrench"
+                            )
+                            .build()
+                        context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+                    }) {
+                        Text("Request Build")
+                    }
+                }
+                if (nativeBuildLoading) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
+                nativeBuilds.forEach { build ->
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(build.label.ifBlank { build.name }, style = MaterialTheme.typography.titleSmall)
+                            Text(build.name, style = MaterialTheme.typography.bodySmall)
+                            Button(
+                                enabled = nativeBuildInstalling == null &&
+                                    activeNativeBuild != build.name,
+                                onClick = {
+                                    coroutineScope.launch {
+                                        nativeBuildInstalling = build.name
+                                        nativeBuildProgress = 0f
+                                        nativeBuildMessage = "Mengunduh dan memverifikasi ${build.label}..."
+                                        val result = runCatching {
+                                            RustNativeBuildManager.install(context, build) { done, total ->
+                                                coroutineScope.launch {
+                                                    nativeBuildProgress =
+                                                        if (total > 0) (done.toFloat() / total).coerceIn(0f, 1f)
+                                                        else 0f
+                                                }
+                                            }
+                                        }
+                                        result.onSuccess {
+                                            activeNativeBuild = it
+                                            nativeBuildMessage = "Native build terpasang. Tutup lalu buka Rust Edition untuk memakainya."
+                                        }.onFailure {
+                                            nativeBuildMessage = it.message ?: "Gagal memasang native build."
+                                        }
+                                        nativeBuildInstalling = null
+                                    }
+                                }
+                            ) {
+                                Text(if (nativeBuildInstalling == build.name) "Downloading..." else "Download & Activate")
+                            }
+                            if (nativeBuildInstalling == build.name) {
+                                LinearProgressIndicator(
+                                    progress = nativeBuildProgress,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+                    }
+                }
+                if (activeNativeBuild != null) {
+                    TextButton(onClick = {
+                        RustNativeBuildManager.disable(context)
+                        activeNativeBuild = null
+                        nativeBuildMessage = "Native build dinonaktifkan. Rust Edition akan memakai library bawaan APK pada launch berikutnya."
+                    }) {
+                        Text("Disable Native Build")
+                    }
+                }
+                nativeBuildMessage?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall)
+                }
+                Text(
+                    "Keamanan: library native adalah kode mesin dengan akses penuh. Hanya aktifkan build dari mod yang lu percaya. Build yang diunduh diperiksa SHA-256 sebelum digunakan.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error
                 )
-                Text("Folder native runtime Starling: ${nativeDir.absolutePath}", style = MaterialTheme.typography.bodySmall)
             }
         }
 
