@@ -244,7 +244,9 @@ fun RustEditionSettingsScreen() {
         copySelected(uri, resourcePacksDir, setOf("zip"))
     }
 
-    val gameFilesReady = File(gameHome, "starling-files.json").isFile
+    // Starling's accounts::files_root() stores Mojang files in private_home()/minecraft,
+    // separate from game_home() (filesDir/rust-edition).
+    val gameFilesReady = File(File(context.filesDir, "minecraft"), "starling-files.json").isFile
 
     Column(
         modifier = Modifier
