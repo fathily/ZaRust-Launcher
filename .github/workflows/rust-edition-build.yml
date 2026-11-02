@@ -45,7 +45,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: JuanLuci/starling
-          ref: 1d53294cf27dbe676197fdd826669d6b7030d2e1
+          ref: 1d45d81bad530e20cfa18e9b47b1d7247b469ea4
           path: ZaRust/StarlingEngine
 
       - name: Set up JDK 21
