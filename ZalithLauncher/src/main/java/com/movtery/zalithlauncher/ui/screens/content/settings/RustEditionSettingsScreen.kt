@@ -173,7 +173,7 @@ fun RustEditionSettingsScreen() {
                             "Ukuran hasil ekstrak arsip terlalu besar"
                         }
                         if (entry.name == "horizon-native.json") {
-                            require(entry.size in 1..262144) { "Manifest native mod tidak valid" }
+                            require(entry.size in 1L..262144L) { "Manifest native mod tidak valid" }
                             manifestText = archive.getInputStream(entry).bufferedReader(Charsets.UTF_8).use { it.readText() }
                         }
                     }
