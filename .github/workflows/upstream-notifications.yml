@@ -35,10 +35,6 @@ jobs:
             const horizonSha = horizon.data.sha;
             const starlingSha = starling.data.sha;
 
-            if (horizonSha.startsWith("unknown") || starlingSha === pinnedSha) {
-              if (horizonSha === "unknown") core.warning("Could not resolve Horizon main.");
-            }
-
             const title = `ZaRust APK upstream update: Horizon ${horizonSha.slice(0, 7)} / Starling ${starlingSha.slice(0, 7)}`;
             const needsNotice = starlingSha !== pinnedSha || horizonSha !== "5d65d7b50dbf1b98d43d201bd83e008edd55369e";
             if (!needsNotice) {
@@ -47,7 +43,7 @@ jobs:
             }
 
             const existing = await github.rest.issues.listForRepo({
-              owner, repo, state: "open", per_page: 100
+              owner, repo, state: "all", per_page: 100
             });
             if (existing.data.some(issue => issue.title === title)) {
               core.info("An open notification already exists for these upstream revisions.");
