@@ -13,6 +13,12 @@ The Android build checks out [JuanLuci/Starling](https://github.com/JuanLuci/sta
 
 ## Mods
 
+## Android native mod builds
+
+The Android native-mod workflow is based on Starling's cloud build process. It applies reviewed Horizon mixin bundles to the pinned Starling Android source and compiles a matching `libhorizon_android.so` for **arm64-v8a**. A versioned `.so` and JSON manifest are published in the `native-builds` prerelease; ZaRust verifies the library's SHA-256 before selecting it for the next game launch.
+
+Only reviewed bundles committed under `tools/rust-edition/native-mods/<id>/mixins/<id>/` can be built. The current bundled example is Wrench. A file imported from the device remains staged until its source is reviewed and committed to that approved folder. Native mods are not sandboxed.
+
 - .hmod: content/data mod package. ZaRust imports it into the Rust Edition mod folder.
 - .hnmod: native Rust source bundle. ZaRust validates its ZIP structure and horizon-native.json manifest, then stores it under the app-private rust-edition/imported-hnmod/ folder.
 
