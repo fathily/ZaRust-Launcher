@@ -59,7 +59,14 @@ public final class RustEditionBridge {
     /** Starts Starling in the same application and passes the selected ZaRust account. */
     public static void launch(Context context, Account account) {
         try {
-            RustControlLayoutAdapter.apply(context);
+            if (!RustControlLayoutAdapter.apply(context)) {
+                Toast.makeText(
+                        context,
+                        "Preset kontrol Zalith tidak ditemukan atau gagal disiapkan. Periksa Control Manager lalu coba lagi.",
+                        Toast.LENGTH_LONG
+                ).show();
+                return;
+            }
             Intent intent = new Intent();
             intent.setClassName(context, "io.github.juanluci.starling.StarlingActivity");
             intent.putExtra("zarust_input_mode", getInputMode(context));
