@@ -2,7 +2,7 @@ name: Build ZaRust with Starling Rust Edition
 
 on:
   pull_request:
-    branches: [main]
+    branches: ['**']
   workflow_dispatch:
     inputs:
       variant:
@@ -37,19 +37,19 @@ jobs:
 
     steps:
       - name: Checkout ZaRust Launcher
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: ZaRust
 
       - name: Checkout pinned Starling Android source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: JuanLuci/starling
           ref: 1d45d81bad530e20cfa18e9b47b1d7247b469ea4
           path: ZaRust/StarlingEngine
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
@@ -69,7 +69,7 @@ jobs:
           set -o pipefail
           "$sdkmanager_path" \
             "platform-tools" \
-            "platforms;android-36" \
+            "platforms;android-37" \
             "build-tools;35.0.0" \
             "ndk;28.2.13676358" \
             "ndk;25.2.9519653"
@@ -78,10 +78,11 @@ jobs:
 
       - name: Set up Rust and cargo-ndk
         run: |
-          rustup toolchain install stable --profile minimal --target aarch64-linux-android
-          rustup default stable
-          cargo install cargo-ndk --version 3.5.4 --locked
+          rustup toolchain install 1.99.1 --profile minimal --target aarch64-linux-android
+          rustup default 1.99.1
+          rustup target list --installed --toolchain 1.99.1 | grep -Fx aarch64-linux-android
           rustc --version
+          cargo install cargo-ndk --version 3.5.4 --locked
           cargo ndk --version
 
       - name: Cache Starling Cargo builds
