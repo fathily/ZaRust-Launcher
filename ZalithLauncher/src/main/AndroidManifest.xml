@@ -46,6 +46,44 @@
         tools:targetApi="33"
         tools:ignore="DiscouragedApi">
         <activity
+            android:name="io.github.juanluci.starling.StarlingActivity"
+            android:process=":rustgame"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|screenSize|keyboardHidden|keyboard|density|screenLayout|navigation"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@style/HorizonGameTheme">
+            <meta-data
+                android:name="android.app.lib_name"
+                android:value="horizon_android" />
+            <meta-data
+                android:name="android.app.func_name"
+                android:value="starling_on_create" />
+        </activity>
+
+        <activity
+            android:name="io.github.juanluci.starling.LauncherActivity"
+            android:process=":rustlauncher"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:screenOrientation="sensorLandscape"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <service
+            android:name="io.github.juanluci.starling.WorkService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <provider
+            android:name="io.github.juanluci.starling.UpdateProvider"
+            android:authorities="${applicationId}.updates"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+
+        <activity
             android:name=".ui.activities.SplashActivity"
             android:theme="@style/AppTheme.SplashScreen"
             android:exported="true"

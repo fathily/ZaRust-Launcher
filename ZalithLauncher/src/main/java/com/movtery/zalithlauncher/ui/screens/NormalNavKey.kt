@@ -113,6 +113,10 @@ sealed interface NormalNavKey : TitledNavKey {
         @Serializable data object Launcher : Settings {
             @Contextual override val title: AndroidStringText = androidText(R.string.settings_tab_launcher)
         }
+        /** Native Rust engine settings */
+        @Serializable data object RustEdition : Settings {
+            @Contextual override val title: AndroidStringText = androidText(R.string.settings_tab_rust_edition)
+        }
         /** Java管理屏幕 */
         @Serializable data object JavaManager : Settings {
             @Contextual override val title: AndroidStringText = androidText(R.string.settings_tab_java_manage)

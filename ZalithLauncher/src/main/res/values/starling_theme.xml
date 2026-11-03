@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Full-screen window for the embedded native Rust game. -->
+    <style name="Starling.Game" parent="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
+</resources>

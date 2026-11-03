@@ -1,0 +1,67 @@
+name: Horizon Rust upstream notifications
+
+on:
+  schedule:
+    - cron: "30 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check-upstream:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Horizon and Android-port revisions
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const [horizon, starling, buildFile] = await Promise.all([
+              github.rest.repos.getCommit({ owner: "horizon-rust", repo: "horizon", ref: "main" }),
+              github.rest.repos.getCommit({ owner: "JuanLuci", repo: "starling", ref: "android" }),
+              github.rest.repos.getContent({
+                owner, repo,
+                path: ".github/workflows/rust-edition-build.yml",
+                ref: context.ref
+              })
+            ]);
+
+            const workflow = Buffer.from(buildFile.data.content, "base64").toString("utf8");
+            const pinned = workflow.match(/repository:\s*JuanLuci\/starling[\s\S]*?ref:\s*([0-9a-f]{40})/);
+            const pinnedSha = pinned ? pinned[1] : "unknown";
+            const horizonSha = horizon.data.sha;
+            const starlingSha = starling.data.sha;
+
+            const title = `ZaRust APK upstream update: Horizon ${horizonSha.slice(0, 7)} / Starling ${starlingSha.slice(0, 7)}`;
+            const needsNotice = starlingSha !== pinnedSha || horizonSha !== "5d65d7b50dbf1b98d43d201bd83e008edd55369e";
+            if (!needsNotice) {
+              core.info("The tracked upstream revisions have not changed.");
+              return;
+            }
+
+            const existing = await github.rest.issues.listForRepo({
+              owner, repo, state: "all", per_page: 100
+            });
+            if (existing.data.some(issue => issue.title === title)) {
+              core.info("An open notification already exists for these upstream revisions.");
+              return;
+            }
+
+            const body = [
+              "An upstream revision changed. This repository combines the Zalith Android launcher with the Horizon Rust game engine for the ZaRust APK.",
+              "",
+              "## Upstream revisions",
+              `- Horizon Rust main: [${horizonSha.slice(0, 7)}](https://github.com/horizon-rust/horizon/commit/${horizonSha})`,
+              `- Starling Android branch: [${starlingSha.slice(0, 7)}](https://github.com/JuanLuci/starling/commit/${starlingSha})`,
+              `- Starling revision currently pinned by this build: ${pinnedSha}`,
+              "",
+              "## Maintainer review",
+              "Horizon mainline is not a drop-in Android replacement. Review Android JNI/activity, storage, native build, and ABI compatibility before changing the ZaRust pin. Update the embedded engine and run the combined APK workflow; do not announce a new APK until CI verifies the package and uploads its artifact.",
+              "",
+              "This issue is an upstream-change notification, not confirmation that a new APK has been built."
+            ].join("\n");
+
+            await github.rest.issues.create({ owner, repo, title, body });
