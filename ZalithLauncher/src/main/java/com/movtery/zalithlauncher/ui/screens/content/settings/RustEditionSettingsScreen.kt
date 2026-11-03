@@ -54,30 +54,30 @@ private val rustConfigDocuments = listOf(
     RustConfigDocument(
         "Game & Keyboard / Mouse",
         "options.txt",
-        "Pengaturan game bergaya vanilla: FOV, render distance, FPS, audio, bahasa, chat, sensitivitas mouse, dan key binding. Key binding memakai baris key_<nama>:key.keyboard.<tombol> atau key.mouse.<tombol>."
+        "Vanilla-style game settings: FOV, render distance, FPS, audio, language, chat, mouse sensitivity, and key bindings. Use key_<name>:key.keyboard.<key> or key.mouse.<button> entries."
     ),
     RustConfigDocument(
         "Horizon Graphics",
         "horizon-graphics.txt",
-        "Pengaturan renderer Horizon: LOD distance, culling, chunk upload budget, worker threads, resolution scale, FXAA, battery mode, frame pacing, overlay FPS, dan graphics API.",
+        "Horizon renderer settings: LOD distance, culling, chunk upload budget, worker threads, resolution scale, FXAA, battery mode, frame pacing, FPS overlay, and graphics API.",
 
     ),
     RustConfigDocument(
         "Controller & On-screen Keyboard",
         "horizon-controller.txt",
-        "Pengaturan gamepad Horizon: enable, vibration, adaptive triggers, deadzone, sensitivity, button glyph, menu navigation, dan keyboard virtual. Tetap gunakan pilihan input Zalith / Starling di atas.",
+        "Horizon gamepad settings: enable, vibration, adaptive triggers, deadzone, sensitivity, button glyphs, menu navigation, and virtual keyboard. The input mode selected above controls the on-screen layout.",
 
     ),
     RustConfigDocument(
         "Horizon Extras",
         "horizon-extras.txt",
-        "Fitur tambahan Horizon: fullbright, dynamic lights, zoom, FPS counter, keystrokes/CPS, minimap, auto reconnect, mouse tweaks, dan item sorting.",
+        "Horizon extras: fullbright, dynamic lights, zoom, FPS counter, keystrokes/CPS, minimap, auto-reconnect, mouse tweaks, and item sorting.",
 
     ),
     RustConfigDocument(
         "Horizon Mods",
         "horizon-mods.txt",
-        "Aktifkan mod yang sudah dipasang di folder horizon-mods. Satu mod per baris dengan format mod.<id>:true. File .hmod tetap diimpor lewat bagian Mod Manager.",
+        "Enable mods installed in the horizon-mods folder. Add one mod per line using mod.<id>:true. Import .hmod files from the Mod Manager section.",
         ""
     )
 )
@@ -120,12 +120,12 @@ fun RustEditionSettingsScreen() {
             result.onSuccess {
                 nativeBuilds = it
                 nativeBuildMessage = if (it.isEmpty()) {
-                    "Belum ada build native untuk ZaRust $nativeAppVersion."
+                    "No native builds have been published for ZaRust $nativeAppVersion yet."
                 } else {
-                    "Ditemukan ${it.size} build yang cocok dengan ZaRust $nativeAppVersion."
+                    "Found ${it.size} build(s) compatible with ZaRust $nativeAppVersion."
                 }
             }.onFailure {
-                nativeBuildMessage = it.message ?: "Gagal memuat daftar native build."
+                nativeBuildMessage = it.message ?: "Could not load the native build list."
             }
             nativeBuildLoading = false
         }
@@ -144,27 +144,27 @@ fun RustEditionSettingsScreen() {
             } ?: "imported-file"
             val extension = name.substringAfterLast('.', "").lowercase()
             require(extension in accepted) {
-                "Format tidak didukung. Gunakan: " + accepted.joinToString(", ")
+                "Unsupported file type. Allowed extensions: " + accepted.joinToString(", ")
             }
             require(destination.isDirectory || destination.mkdirs()) {
-                "Tidak bisa membuat folder ${destination.absolutePath}"
+                "Could not create folder: ${destination.absolutePath}"
             }
             val target = File(destination, name)
             val temporary = File(destination, name + ".partial")
             context.contentResolver.openInputStream(uri).use { input ->
-                requireNotNull(input) { "File tidak bisa dibaca" }
+                requireNotNull(input) { "Could not read the selected file." }
                 FileOutputStream(temporary).use { output ->
                     input.copyTo(output)
                     output.fd.sync()
                 }
             }
             if (target.exists() && !target.delete()) {
-                throw IllegalStateException("Tidak bisa mengganti file lama: $name")
+                throw IllegalStateException("Could not replace the existing file: $name")
             }
-            check(temporary.renameTo(target)) { "Gagal menyimpan $name" }
-            pickerMessage = "Berhasil memasang $name"
+            check(temporary.renameTo(target)) { "Could not save $name." }
+            pickerMessage = "Successfully installed $name."
         }.onFailure {
-            pickerMessage = it.message ?: "Gagal mengimpor file"
+            pickerMessage = it.message ?: "Could not import the selected file."
         }
     }
 
@@ -176,18 +176,18 @@ fun RustEditionSettingsScreen() {
         if (uri != null) {
             runCatching {
                 require(hnmodImportDir.isDirectory || hnmodImportDir.mkdirs()) {
-                    "Tidak bisa membuat folder import native mod"
+                    "Could not create the native mod import folder."
                 }
                 val displayName = context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
                     val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
                     if (index >= 0 && cursor.moveToFirst()) cursor.getString(index) else null
                 } ?: "native-mod.hnmod"
                 require(displayName.endsWith(".hnmod", ignoreCase = true)) {
-                    "Pilih file dengan ekstensi .hnmod"
+                    "Select a file with the .hnmod extension."
                 }
                 val temporary = File(hnmodImportDir, displayName + ".partial")
                 context.contentResolver.openInputStream(uri).use { input ->
-                    requireNotNull(input) { "File tidak bisa dibaca" }
+                    requireNotNull(input) { "Could not read the selected file." }
                     FileOutputStream(temporary).use { output ->
                         input.copyTo(output)
                         output.fd.sync()
@@ -201,13 +201,13 @@ fun RustEditionSettingsScreen() {
                     while (entries.hasMoreElements()) {
                         val entry = entries.nextElement()
                         count++
-                        require(count <= 5000) { "Arsip berisi terlalu banyak file" }
+                        require(count <= 5000) { "The archive contains too many files." }
                         require(!entry.name.startsWith("/") && !entry.name.split('/').contains("..")) {
                             "Arsip berisi path yang tidak aman"
                         }
                         if (entry.size > 0) totalExpanded += entry.size
                         require(totalExpanded <= 128L * 1024L * 1024L) {
-                            "Ukuran hasil ekstrak arsip terlalu besar"
+                            "The expanded archive is too large."
                         }
                         if (entry.name == "horizon-native.json") {
                             require(entry.size in 1L..262144L) { "Manifest native mod tidak valid" }
@@ -215,25 +215,25 @@ fun RustEditionSettingsScreen() {
                         }
                     }
                     val manifest = JSONObject(requireNotNull(manifestText) {
-                        "Manifest horizon-native.json tidak ditemukan"
+                        "horizon-native.json manifest was not found."
                     })
                     val modId = manifest.optString("id")
                     require(modId.matches(Regex("[a-z0-9][a-z0-9_-]{0,40}"))) {
                         "ID mod tidak valid di manifest"
                     }
                     require(manifest.optString("version").isNotBlank()) {
-                        "Versi mod tidak ditemukan di manifest"
+                        "The mod version is missing from the manifest."
                     }
                     require(archive.getEntry("mixins/$modId/horizon-mixin.toml") != null) {
-                        "Source mixin tidak ditemukan di mixins/$modId/horizon-mixin.toml"
+                        "Mixin source was not found at mixins/$modId/horizon-mixin.toml."
                     }
                 }
                 val target = File(hnmodImportDir, displayName)
-                if (target.exists() && !target.delete()) error("Tidak bisa mengganti file lama")
-                check(temporary.renameTo(target)) { "Gagal menyimpan paket .hnmod" }
-                pickerMessage = "Berhasil import $displayName. Paket tersimpan dan menunggu native build."
+                if (target.exists() && !target.delete()) error("Could not replace the existing file.")
+                check(temporary.renameTo(target)) { "Could not save the .hnmod package." }
+                pickerMessage = "Imported $displayName. The package is saved and waiting for a native build."
             }.onFailure {
-                pickerMessage = it.message ?: "Gagal import .hnmod"
+                pickerMessage = it.message ?: "Could not import the .hnmod package."
             }
         }
     }
@@ -257,7 +257,7 @@ fun RustEditionSettingsScreen() {
     ) {
         Text("Rust Edition", style = MaterialTheme.typography.headlineSmall)
         Text(
-            "Kelola Rust Edition langsung dari pengaturan ZaRust. Akun aktif tetap memakai akun ZaRust; tidak perlu layar login kedua.",
+            "Manage Rust Edition from ZaRust settings. Rust Edition uses your active ZaRust account; a second sign-in screen is not required.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -265,20 +265,20 @@ fun RustEditionSettingsScreen() {
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Status Game", style = MaterialTheme.typography.titleMedium)
-                Text(if (gameFilesReady) "File game sudah terpasang." else "File game belum terdeteksi. Tekan Play Rust untuk menyiapkan file game resmi.")
+                Text(if (gameFilesReady) "Game files are installed." else "Game files were not found. Press Play Rust to set up the official game files.")
                 Text("Akun: " + (account?.let { "${it.username} · ${it.accountType ?: "Local"}" } ?: "Offline"))
-                Text("Folder game: ${gameHome.absolutePath}", style = MaterialTheme.typography.bodySmall)
+                Text("Game folder: ${gameHome.absolutePath}", style = MaterialTheme.typography.bodySmall)
             }
         }
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Input & Kontrol", style = MaterialTheme.typography.titleMedium)
+                Text("Input & Controls", style = MaterialTheme.typography.titleMedium)
                 Text(
                     if (inputMode == "zalith") {
-                        "Mode Zalith memakai preset tombol dan posisi dari Control Manager, lalu mengonversinya ke format input Rust. Tampilan tombol tetap dirender oleh engine Starling karena game berjalan pada NativeActivity."
+                        "ZaRust Controls uses the layout currently selected in Control Manager. Before launch, ZaRust exports its button positions and key bindings to the Rust engine and disables every unmapped built-in control. Only the mapped layout is active in-game."
                     } else {
-                        "Mode Starling memakai tata letak dan tombol sentuh bawaan engine Rust."
+                        "Starling Controls restores the saved Starling touch layout and its built-in controls."
                     }
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -288,7 +288,7 @@ fun RustEditionSettingsScreen() {
                             inputMode = "zalith"
                             RustEditionBridge.setInputMode(context, inputMode)
                         },
-                        label = { Text("Zalith") }
+                        label = { Text("ZaRust Controls") }
                     )
                     FilterChip(
                         selected = inputMode == "starling",
@@ -296,11 +296,11 @@ fun RustEditionSettingsScreen() {
                             inputMode = "starling"
                             RustEditionBridge.setInputMode(context, inputMode)
                         },
-                        label = { Text("Starling") }
+                        label = { Text("Starling Controls") }
                     )
                 }
                 Text(
-                    "Keyboard fisik dan mouse: mapping disimpan di options.txt. Pengaturan keyboard virtual dan gamepad Horizon ada di tab Controller & On-screen Keyboard.",
+                    "Physical keyboard and mouse input continue to use the game's key bindings in options.txt. Horizon virtual keyboard and gamepad options are available in the Controller & On-screen Keyboard tab.",
                     style = MaterialTheme.typography.bodySmall
                 )
             }
@@ -309,7 +309,7 @@ fun RustEditionSettingsScreen() {
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Horizon Settings", style = MaterialTheme.typography.titleMedium)
-                Text("Semua berkas konfigurasi yang dipakai Horizon tersedia dari ZaRust. Pilih kategori, ubah nilainya, lalu simpan sebelum menekan Play Rust.")
+                Text("Horizon configuration files are managed here. Select a category, edit its values, and save before pressing Play Rust.")
                 Row(
                     modifier = Modifier.horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -330,22 +330,22 @@ fun RustEditionSettingsScreen() {
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 10,
                     maxLines = 24,
-                    label = { Text("Isi ${selected.fileName}") }
+                    label = { Text("Edit ${selected.fileName}") }
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = {
                         pickerMessage = runCatching {
                             writeRustConfig(gameHome, selected, editorText)
-                            "Tersimpan: ${selected.fileName}"
-                        }.getOrElse { "Gagal menyimpan: ${it.message}" }
+                            "Saved: ${selected.fileName}"
+                        }.getOrElse { "Could not save: ${it.message}" }
                     }) {
-                        Text("Simpan Pengaturan")
+                        Text("Save Settings")
                     }
                     TextButton(onClick = {
                         editorText = readRustConfig(gameHome, selected)
                         pickerMessage = "Perubahan editor dibatalkan."
                     }) {
-                        Text("Muat Ulang")
+                        Text("Reload")
                     }
                 }
             }
@@ -354,43 +354,43 @@ fun RustEditionSettingsScreen() {
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Mod Manager · HMOD", style = MaterialTheme.typography.titleMedium)
-                Text("Impor file .hmod ke folder Horizon. Status aktif/nonaktif mod disimpan di horizon-mods.txt.")
+                Text("Import .hmod files into the Horizon mods folder. Mod enable/disable states are stored in horizon-mods.txt.")
                 Text(modsDir.absolutePath, style = MaterialTheme.typography.bodySmall)
-                Button(onClick = { hmodPicker.launch(arrayOf("*/*")) }) { Text("Impor HMOD") }
+                Button(onClick = { hmodPicker.launch(arrayOf("*/*")) }) { Text("Import HMOD") }
             }
         }
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Shader Manager · HShader", style = MaterialTheme.typography.titleMedium)
-                Text("Impor .hshader atau shader pack ZIP ke folder shaderpacks.")
+                Text("Import .hshader files or ZIP shader packs into the shaderpacks folder.")
                 Text(shadersDir.absolutePath, style = MaterialTheme.typography.bodySmall)
-                Button(onClick = { shaderPicker.launch(arrayOf("*/*")) }) { Text("Impor Shader") }
+                Button(onClick = { shaderPicker.launch(arrayOf("*/*")) }) { Text("Import Shader") }
             }
         }
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Resource Pack Manager", style = MaterialTheme.typography.titleMedium)
-                Text("Impor resource pack ZIP ke folder game Rust Edition. Daftar pack yang aktif tetap mengikuti resourcePacks di options.txt.")
+                Text("Import ZIP resource packs into the Rust Edition game folder. The active pack list remains controlled by resourcePacks in options.txt.")
                 Text(resourcePacksDir.absolutePath, style = MaterialTheme.typography.bodySmall)
-                Button(onClick = { resourcePackPicker.launch(arrayOf("*/*")) }) { Text("Impor Resource Pack") }
+                Button(onClick = { resourcePackPicker.launch(arrayOf("*/*")) }) { Text("Import Resource Pack") }
             }
         }
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Native Mods · HNMOD", style = MaterialTheme.typography.titleMedium)
-                Text("Impor paket source native Horizon (.hnmod). ZaRust memeriksa manifest dan menyimpan paket terpisah dari library runtime Starling.")
-                Text("Paket tersimpan: ${hnmodImportDir.listFiles()?.count { it.isFile && it.extension.equals("hnmod", true) } ?: 0}")
+                Text("Import a Horizon native source package (.hnmod). ZaRust validates its manifest and stores the package separately from the runtime library.")
+                Text("Saved packages: ${hnmodImportDir.listFiles()?.count { it.isFile && it.extension.equals("hnmod", true) } ?: 0}")
                 Text(hnmodImportDir.absolutePath, style = MaterialTheme.typography.bodySmall)
                 Button(onClick = { hnmodPicker.launch(arrayOf("*/*")) }) { Text("Import .HNMOD") }
                 Text(
-                    "File yang diimpor disimpan di perangkat. Agar bisa dibangun di cloud, bundle-nya harus lebih dulu direview dan dimasukkan ke folder native-mods repository.",
+                    "Imported packages are stored on this device. To compile one in the cloud, its bundle must first be reviewed and committed under the repository's native-mods folder.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Text("Folder native runtime: ${nativeDir.absolutePath}", style = MaterialTheme.typography.bodySmall)
+                Text("Native runtime folder: ${nativeDir.absolutePath}", style = MaterialTheme.typography.bodySmall)
             }
         }
 
@@ -398,31 +398,27 @@ fun RustEditionSettingsScreen() {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Native Build Manager · Android ARM64", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "Build native Horizon dihasilkan oleh GitHub Actions untuk versi ZaRust yang cocok. Setelah diunduh dan diverifikasi, Starling memuat library ini pada Rust launch berikutnya.",
+                    "This workflow compiles only the ARM64 native library (.so). It does not build or replace the ZaRust APK. The output is published to the native-builds release and can be installed from this screen.",
                     style = MaterialTheme.typography.bodySmall
                 )
-                Text("Versi target: $nativeAppVersion")
                 Text(
-                    activeNativeBuild?.let { "Aktif pada launch berikutnya: $it" }
-                        ?: "Belum ada native build tambahan yang dipilih."
+                    "Build steps: open the workflow, choose Run workflow, keep the app version at $nativeAppVersion, and enter an approved mod ID (the default is wrench). After the workflow succeeds, return here, tap Refresh Builds, then Download & Activate.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text("Target version: $nativeAppVersion")
+                Text(
+                    activeNativeBuild?.let { "Custom native build active for the next launch: $it" }
+                        ?: "No custom native build is active. The built-in Rust runtime bundled in the ZaRust APK will be used."
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { refreshNativeBuilds() }, enabled = !nativeBuildLoading) {
-                        Text(if (nativeBuildLoading) "Memuat..." else "Refresh Build")
+                        Text(if (nativeBuildLoading) "Loading..." else "Refresh Builds")
                     }
                     TextButton(onClick = {
-                        val uri = Uri.parse("https://github.com/fathily/ZaRust-Launcher/issues/new")
-                            .buildUpon()
-                            .appendQueryParameter("template", "rust-native-build.yml")
-                            .appendQueryParameter("title", "[ZaRust native build]")
-                            .appendQueryParameter(
-                                "body",
-                                "### ZaRust app version\n$nativeAppVersion\n\n### Native mod IDs\nwrench"
-                            )
-                            .build()
+                        val uri = Uri.parse("https://github.com/fathily/ZaRust-Launcher/actions/workflows/rust-edition-native-mods.yml")
                         context.startActivity(Intent(Intent.ACTION_VIEW, uri))
                     }) {
-                        Text("Request Build")
+                        Text("Open Native Build Workflow")
                     }
                 }
                 if (nativeBuildLoading) {
@@ -440,7 +436,7 @@ fun RustEditionSettingsScreen() {
                                     coroutineScope.launch {
                                         nativeBuildInstalling = build.name
                                         nativeBuildProgress = 0f
-                                        nativeBuildMessage = "Mengunduh dan memverifikasi ${build.label}..."
+                                        nativeBuildMessage = "Downloading and verifying ${build.label}..."
                                         val result = runCatching {
                                             RustNativeBuildManager.install(context, build) { done, total ->
                                                 coroutineScope.launch {
@@ -452,9 +448,9 @@ fun RustEditionSettingsScreen() {
                                         }
                                         result.onSuccess {
                                             activeNativeBuild = it
-                                            nativeBuildMessage = "Native build terpasang. Tutup lalu buka Rust Edition untuk memakainya."
+                                            nativeBuildMessage = "Native build installed. Restart Rust Edition to use it."
                                         }.onFailure {
-                                            nativeBuildMessage = it.message ?: "Gagal memasang native build."
+                                            nativeBuildMessage = it.message ?: "Could not install the native build."
                                         }
                                         nativeBuildInstalling = null
                                     }
@@ -475,16 +471,16 @@ fun RustEditionSettingsScreen() {
                     TextButton(onClick = {
                         RustNativeBuildManager.disable(context)
                         activeNativeBuild = null
-                        nativeBuildMessage = "Native build dinonaktifkan. Rust Edition akan memakai library bawaan APK pada launch berikutnya."
+                        nativeBuildMessage = "Custom native build disabled. Rust Edition will use the built-in runtime bundled in the ZaRust APK on the next launch."
                     }) {
-                        Text("Disable Native Build")
+                        Text("Use Built-in Runtime")
                     }
                 }
                 nativeBuildMessage?.let {
                     Text(it, style = MaterialTheme.typography.bodySmall)
                 }
                 Text(
-                    "Keamanan: library native adalah kode mesin dengan akses penuh. Hanya aktifkan build dari mod yang lu percaya. Build yang diunduh diperiksa SHA-256 sebelum digunakan.",
+                    "Security: native libraries are executable code with full game access. Only activate builds you trust. Downloaded files are verified with SHA-256 before use.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error
                 )
@@ -494,7 +490,7 @@ fun RustEditionSettingsScreen() {
         pickerMessage?.let {
             Text(
                 it,
-                color = if (it.startsWith("Tersimpan") || it.startsWith("Berhasil")) MaterialTheme.colorScheme.primary
+                color = if (it.startsWith("Saved") || it.startsWith("Successfully") || it.startsWith("Imported")) MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.error
             )
         }
@@ -509,7 +505,7 @@ private fun readRustConfig(home: File, document: RustConfigDocument): String {
 }
 
 private fun writeRustConfig(home: File, document: RustConfigDocument, content: String) {
-    require(home.isDirectory || home.mkdirs()) { "Folder game tidak dapat dibuat: ${home.absolutePath}" }
+    require(home.isDirectory || home.mkdirs()) { "Could not create the game folder: ${home.absolutePath}" }
     val target = File(home, document.fileName)
     val temporary = File(home, document.fileName + ".partial")
     FileOutputStream(temporary).use { output ->
@@ -518,10 +514,10 @@ private fun writeRustConfig(home: File, document: RustConfigDocument, content: S
     }
     if (target.exists() && !target.delete()) {
         temporary.delete()
-        error("Tidak dapat mengganti ${target.name}")
+        error("Could not replace ${target.name}.")
     }
     check(temporary.renameTo(target)) {
         temporary.delete()
-        "Gagal menyimpan ${target.name}"
+        "Could not save ${target.name}."
     }
 }
