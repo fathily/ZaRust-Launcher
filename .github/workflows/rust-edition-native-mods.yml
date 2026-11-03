@@ -225,10 +225,10 @@ jobs:
           set -euo pipefail
           test -s "built/$BUILD_NAME.so"
           test -s "built/$BUILD_NAME.json"
-          gh release view native-builds -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \\
-            gh release create native-builds -R "$GITHUB_REPOSITORY" \\
-              --prerelease --latest=false \\
-              --title "ZaRust native Rust libraries" \\
+          gh release view native-builds -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create native-builds -R "$GITHUB_REPOSITORY" \
+              --prerelease --latest=false \
+              --title "ZaRust native Rust libraries" \
               --notes "Version-matched arm64-v8a Horizon libraries. Each .so is accompanied by a JSON manifest containing the app version, ABI and SHA-256."
-          gh release upload native-builds -R "$GITHUB_REPOSITORY" --clobber \\
+          gh release upload native-builds -R "$GITHUB_REPOSITORY" --clobber \
             "built/$BUILD_NAME.so" "built/$BUILD_NAME.json"
