@@ -11,14 +11,30 @@ import java.io.IOException;
  * settings all belong to ZaRust's Compose UI.
  */
 public final class HorizonActivity extends NativeActivity {
-    static {
-        System.loadLibrary("horizon_android");
+    private void loadSelectedRustRuntime() {
+        // Load a locally compiled library before NativeActivity processes android.app.lib_name.
+        // The selected file has the same native entry point and SONAME as the bundled runtime.
+        File customRuntime = RustNativeBuildManager.INSTANCE.currentLibrary(this);
+        if (customRuntime != null) {
+            File execInfo = new File(
+                    getFilesDir(), "native-runtime/deps/libandroid-execinfo.so");
+            if (execInfo.isFile()) {
+                System.load(execInfo.getAbsolutePath());
+            } else {
+                throw new IllegalStateException(
+                        "The selected native runtime is missing libandroid-execinfo.so");
+            }
+            System.load(customRuntime.getAbsolutePath());
+        } else {
+            System.loadLibrary("horizon_android");
+        }
     }
 
     private native void nativeDocumentResult(int request, int result, String uri);
 
     @Override
     protected void onCreate(Bundle state) {
+        loadSelectedRustRuntime();
         File rustHome = new File(getFilesDir(), "rust-edition");
         if (!rustHome.isDirectory() && !rustHome.mkdirs()) {
             throw new IllegalStateException("Cannot create Rust Edition storage");
