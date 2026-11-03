@@ -78,7 +78,7 @@ public final class RustEditionBridge {
             if (!isAvailable()) {
                 Toast.makeText(
                         context,
-                        "Rust Edition membutuhkan APK ZaRust Starling untuk ARM64 dan Android 9 atau lebih baru.",
+                        "Rust Edition requires the ZaRust ARM64 build and Android 9 or later.",
                         Toast.LENGTH_LONG
                 ).show();
                 return;
@@ -86,7 +86,7 @@ public final class RustEditionBridge {
             if (!RustControlLayoutAdapter.apply(context)) {
                 Toast.makeText(
                         context,
-                        "Preset kontrol Zalith tidak ditemukan atau gagal disiapkan. Periksa Control Manager lalu coba lagi.",
+                        "The selected ZaRust control layout could not be prepared. Check Control Manager and try again.",
                         Toast.LENGTH_LONG
                 ).show();
                 return;
@@ -110,7 +110,7 @@ public final class RustEditionBridge {
         } catch (Exception error) {
             Toast.makeText(
                     context,
-                    "Gagal membuka Starling Rust Edition: " + error.getMessage(),
+                    "Could not launch Rust Edition: " + error.getMessage(),
                     Toast.LENGTH_LONG
             ).show();
         }
