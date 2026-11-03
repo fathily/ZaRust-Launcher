@@ -1,0 +1,209 @@
+name: Build ZaRust native Rust library
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_version:
+        description: ZaRust version (must match the integrated launcher source)
+        required: true
+        type: string
+        default: "2.4.11"
+      mods:
+        description: Approved Horizon native mod IDs (space or comma separated)
+        required: true
+        type: string
+        default: "wrench"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: zarust-native-library-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-native-library:
+    name: Compile arm64-v8a Horizon library (no APK)
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      APP_VERSION: ${{ inputs.app_version }}
+      MODS_INPUT: ${{ inputs.mods }}
+      CARGO_BUILD_JOBS: 3
+      CARGO_TERM_COLOR: always
+      PROFILE: fast
+    steps:
+      - name: Checkout ZaRust Rust Edition build scripts
+        uses: actions/checkout@v4
+        with:
+          repository: fathily/ZaRust-Launcher
+          ref: feature/rust-edition-horizon
+          path: zarust-source
+          persist-credentials: false
+
+      - name: Checkout pinned Starling Android engine
+        uses: actions/checkout@v4
+        with:
+          repository: JuanLuci/starling
+          ref: 1d45d81bad530e20cfa18e9b47b1d7247b469ea4
+          path: starling
+          persist-credentials: false
+
+      - name: Validate version and approved native mod bundles
+        id: validate
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_version=$(sed -n 's/^launcher_version_name=//p' zarust-source/ZalithLauncher/gradle.properties | head -n1)
+          if [[ -z "$source_version" || "$APP_VERSION" != "$source_version" ]]; then
+            echo "::error::Requested ZaRust version '$APP_VERSION' does not match source version '$source_version'."
+            exit 1
+          fi
+          if [[ ! "$APP_VERSION" =~ ^[0-9]+([.][0-9]+){1,3}$ ]]; then
+            echo "::error::Invalid app version."
+            exit 1
+          fi
+          read -r -a mod_ids <<< "$(tr ',' ' ' <<< "$MODS_INPUT" | xargs)"
+          if (( ${#mod_ids[@]} == 0 )); then
+            echo "::error::Enter at least one approved native mod ID."
+            exit 1
+          fi
+          unique_ids=()
+          declare -A seen=()
+          for id in "${mod_ids[@]}"; do
+            id="${id,,}"
+            [[ "$id" =~ ^[a-z0-9][a-z0-9_-]{0,40}$ ]] || { echo "::error::Invalid mod ID: $id"; exit 1; }
+            [[ -z "${seen[$id]+x}" ]] || continue
+            seen[$id]=1
+            bundle="zarust-source/tools/rust-edition/native-mods/$id/mixins/$id"
+            [[ -f "$bundle/horizon-mixin.toml" ]] || {
+              echo "::error::'$id' is not an approved bundle in the integration source."
+              exit 1
+            }
+            unique_ids+=("$id")
+          done
+          mods_joined=$(IFS=__; echo "${unique_ids[*]}")
+          build_name="v${APP_VERSION}__${mods_joined}"
+          echo "build_name=$build_name" >> "$GITHUB_OUTPUT"
+          printf 'Validated ZaRust %s native build: %s\n' "$APP_VERSION" "$build_name"
+
+      - name: Set up Java for Android build tools
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Node.js for Starling build tooling
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Android SDK, NDK and build tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager_path=$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager -print -quit)
+          test -n "$sdkmanager_path"
+          set +o pipefail
+          yes | "$sdkmanager_path" --licenses >/dev/null
+          set -o pipefail
+          "$sdkmanager_path" --install \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;35.0.0" \
+            "ndk;28.2.13676358"
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> "$GITHUB_ENV"
+
+      - name: Install Rust Android target and cargo-ndk
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install stable --profile minimal --target aarch64-linux-android
+          rustup default stable
+          cargo install cargo-ndk --version 3.5.4 --locked
+          rustc --version
+          cargo ndk --version
+
+      - name: Add swap space for native Rust compilation
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo swapoff -a || true
+          swap_file="$RUNNER_TEMP/zarust-native.swap"
+          sudo fallocate -l 12G "$swap_file"
+          sudo chmod 600 "$swap_file"
+          sudo mkswap "$swap_file" >/dev/null
+          sudo swapon "$swap_file"
+
+      - name: Compile only libhorizon_android.so
+        shell: bash
+        run: |
+          set -euo pipefail
+          read -r -a mod_ids <<< "$(tr ',' ' ' <<< "$MODS_INPUT" | xargs)"
+          bundles=()
+          for id in "${mod_ids[@]}"; do
+            id="${id,,}"
+            bundles+=("zarust-source/tools/rust-edition/native-mods/$id/mixins/$id")
+          done
+          mkdir -p output
+          bash zarust-source/tools/rust-edition/native_build.sh \
+            starling output "$APP_VERSION" "${bundles[@]}"
+          test -s output/libhorizon_android.so
+          test -s output/build.json
+          python3 - output/build.json output/libhorizon_android.so <<'PY'
+          import hashlib, json, pathlib, sys
+          metadata_path, library_path = map(pathlib.Path, sys.argv[1:])
+          metadata = json.loads(metadata_path.read_text())
+          library = library_path.read_bytes()
+          if metadata.get("version") != "${{ inputs.app_version }}":
+              raise SystemExit("Native library metadata contains the wrong ZaRust version.")
+          if metadata.get("abi") != "arm64-v8a":
+              raise SystemExit("Native library is not arm64-v8a.")
+          if metadata.get("library") != "libhorizon_android.so":
+              raise SystemExit("Unexpected native library name.")
+          if metadata.get("size") != len(library):
+              raise SystemExit("Native library size does not match its manifest.")
+          if metadata.get("sha256") != hashlib.sha256(library).hexdigest():
+              raise SystemExit("Native library SHA-256 does not match its manifest.")
+          print("Verified native library:", len(library), "bytes")
+          PY
+          build_name="${{ steps.validate.outputs.build_name }}"
+          cp output/libhorizon_android.so "output/$build_name.so"
+          cp output/build.json "output/$build_name.json"
+
+      - name: Publish version-matched native library to ZaRust
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_NAME: ${{ steps.validate.outputs.build_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release view native-builds -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create native-builds -R "$GITHUB_REPOSITORY" \
+              --prerelease --latest=false \
+              --title "ZaRust native Rust libraries" \
+              --notes "Version-matched arm64-v8a Horizon libraries. Each .so is accompanied by a JSON manifest containing the app version, ABI and SHA-256."
+          gh release upload native-builds -R "$GITHUB_REPOSITORY" --clobber \
+            "output/$BUILD_NAME.so" "output/$BUILD_NAME.json"
+
+      - name: Upload native library build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.validate.outputs.build_name }}
+          path: |
+            output/${{ steps.validate.outputs.build_name }}.so
+            output/${{ steps.validate.outputs.build_name }}.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Explain where to install the result
+        if: success()
+        run: |
+          echo "Native library build completed; no ZaRust APK was built."
+          echo "In ZaRust: Rust Edition > Native Build Manager > Refresh Build > Download & Activate."
