@@ -61,7 +61,7 @@ object RustControlLayoutAdapter {
             val minSide = min(display.widthPixels, display.heightPixels).coerceAtLeast(1)
             val resultButtons = JSONObject()
             val mapped = HashSet<String>()
-            val movementButtons = ArrayList<JSONObject>()
+            val movementButtons = linkedMapOf<String, JSONObject>()
             var joystick: JSONObject? = null
 
             for (index in 0 until layers.length()) {
@@ -80,13 +80,15 @@ object RustControlLayoutAdapter {
                     val button = buttons.optJSONObject(buttonIndex) ?: continue
                     val events = button.optJSONArray("clickEvents") ?: JSONArray()
                     val keys = (0 until events.length()).mapNotNull { eventIndex ->
-                        events.optJSONObject(eventIndex)?.optString("key")?.uppercase()
+                        events.optJSONObject(eventIndex)
+                            ?.takeIf { it.optString("type") == "key" }
+                            ?.optString("key")
+                            ?.uppercase()
                     }
                     if (keys.isEmpty()) continue
 
-                    if (keys.any { it in MOVEMENT_KEYS }) {
-                        movementButtons.add(button)
-                    }
+                    keys.mapNotNull { MOVEMENT_KEY_ALIASES[it] }
+                        .forEach { direction -> movementButtons.putIfAbsent(direction, button) }
 
                     val targetId = actionFor(keys) ?: continue
                     if (targetId in mapped) continue
@@ -122,21 +124,32 @@ object RustControlLayoutAdapter {
                         "on"
                     )
                 }
-                movementButtons.size >= 4 -> {
+                movementButtons.keys.containsAll(CARDINAL_DIRECTIONS) -> {
                     movement = "dpad"
-                    val positions = movementButtons.mapNotNull { it.optJSONObject("position") }
+                    val positions = CARDINAL_DIRECTIONS.mapNotNull { direction ->
+                        movementButtons[direction]?.optJSONObject("position")
+                    }
                     val x = positions.map { it.optInt("x", 5000) }.average() / 10000.0
                     val y = positions.map { it.optInt("y", 5000) }.average() / 10000.0
-                    val buttonSize = movementButtons.firstOrNull()?.optJSONObject("buttonSize")
+                    val buttonSize = movementButtons.values.firstOrNull()?.optJSONObject("buttonSize")
                     place(
                         x, y,
                         (buttonRadius(buttonSize, minSide, display.widthPixels, display.heightPixels, display.density) * 1.8).coerceIn(0.5, 2.5),
                         "on"
                     )
                 }
-                else -> place(0.12, 0.733, 1.3, "on")
+                else -> {
+                    error("The selected ZaRust layout has no joystick or complete up/down/left/right movement controls. Starling defaults will not be enabled.")
+                }
             }
 
+            require(mapped.isNotEmpty()) {
+                "The selected ZaRust layout contains no supported Rust game actions."
+            }
+
+            // The native engine uses this layout file for its on-screen input surface.
+            // Every control absent from the selected ZaRust layout is explicitly disabled;
+            // it must never inherit Starling's default button placement.
             for (id in controlIds) {
                 if (!resultButtons.has(id)) {
                     resultButtons.put(id, place(0.5, 0.5, 0.6, "off"))
@@ -166,8 +179,9 @@ object RustControlLayoutAdapter {
             check(temporary.renameTo(sourceFile)) { "Could not commit generated Zalith layout source" }
             Log.i(
                 TAG,
-                "Prepared Zalith control layout ${selectedFile.name}; mapped ${mapped.size} buttons. " +
-                    "Starling will apply it after its private-folder migration."
+                "Prepared ZaRust control layout ${selectedFile.name}; movement=$movement, " +
+                    "mapped=${mapped.size}, source=$sourceFile. The Rust engine will apply it " +
+                    "after its game-folder migration; all unmapped built-in buttons are disabled."
             )
             true
         } catch (error: Exception) {
@@ -197,18 +211,24 @@ object RustControlLayoutAdapter {
             .getOrNull()
             .orEmpty()
         if (selectedName.isNotBlank()) {
-            files.firstOrNull { it.name == selectedName }?.let { return it }
+            return files.firstOrNull {
+                it.name == selectedName ||
+                    it.nameWithoutExtension == selectedName ||
+                    it.absolutePath == selectedName
+            }
         }
 
-        return files.sortedBy { file ->
+        // On a clean install the launcher may not have persisted a selection yet.
+        // Only then use a file explicitly marked as the layout's default.
+        return files.firstOrNull { file ->
             runCatching {
                 JSONObject(file.readText())
                     .optJSONObject("info")
                     ?.optJSONObject("name")
                     ?.optString("default")
-                    ?.takeIf { it.isNotBlank() }
-            }.getOrNull() ?: file.name
-        }.firstOrNull()
+                    ?.isNotBlank() == true
+            }.getOrDefault(false)
+        }
     }
 
     private fun actionFor(keys: List<String>): String? {
@@ -260,7 +280,16 @@ object RustControlLayoutAdapter {
             .put("show", show)
             .put("opacity", 1.0)
 
-    private val MOVEMENT_KEYS = setOf(
-        "GLFW_KEY_W", "GLFW_KEY_A", "GLFW_KEY_S", "GLFW_KEY_D"
+    private val CARDINAL_DIRECTIONS = setOf("up", "down", "left", "right")
+
+    private val MOVEMENT_KEY_ALIASES = mapOf(
+        "GLFW_KEY_W" to "up",
+        "GLFW_KEY_UP" to "up",
+        "GLFW_KEY_S" to "down",
+        "GLFW_KEY_DOWN" to "down",
+        "GLFW_KEY_A" to "left",
+        "GLFW_KEY_LEFT" to "left",
+        "GLFW_KEY_D" to "right",
+        "GLFW_KEY_RIGHT" to "right"
     )
 }
