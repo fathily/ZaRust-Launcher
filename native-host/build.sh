@@ -14,9 +14,9 @@ SQLITE_SHA256="926ef8d3eab93fbf6e06011901273eec076b25594a4e1cdadd50c987f4f6d64e"
 API=24
 fail() { echo "native-host: $*" >&2; exit 1; }
 
-NDK="\${ANDROID_NDK_HOME:-\${ANDROID_NDK:-}}"
+NDK="${ANDROID_NDK_HOME:-${ANDROID_NDK:-}}"
 if [ -z "$NDK" ]; then
-  SDK="\${ANDROID_HOME:-\${ANDROID_SDK_ROOT:-}}"
+  SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
   [ -n "$SDK" ] || fail "Set ANDROID_HOME or ANDROID_NDK_HOME."
   NDK="$SDK/ndk/25.2.9519653"
 fi
@@ -27,9 +27,9 @@ case "$(uname -s)" in
   *) fail "The PRoot APK host builder currently supports Linux and macOS build hosts." ;;
 esac
 TC="$NDK/toolchains/llvm/prebuilt/$HOST/bin"
-CC="$TC/aarch64-linux-android\${API}-clang"
+CC="$TC/aarch64-linux-android${API}-clang"
 [ -x "$CC" ] || fail "Android NDK Clang not found: $CC"
-for tool in llvm-ar llvm-strip llvm-objcopy llvm-objdump; do
+for tool in llvm-ar llvm-strip llvm-objcopy llvm-objdump llvm-readelf; do
   [ -x "$TC/$tool" ] || fail "Android NDK tool not found: $TC/$tool"
 done
 
@@ -84,11 +84,11 @@ mkdir -p "$TALLOC/include"
 "$TC/llvm-ar" rcs "$TALLOC/libtalloc.a" "$TALLOC/talloc.o" "$TALLOC/replace_min.o"
 cp "$CACHE/talloc-$TALLOC_VERSION/talloc.h" "$TALLOC/include/"
 
-export CPPFLAGS="-I$TALLOC/include -DARG_MAX=131072 -DVERSION=\\\"dn-\${PROOT_COMMIT:0:12}\\\""
+export CPPFLAGS="-I$TALLOC/include -DARG_MAX=131072 -DVERSION=\\\"dn-${PROOT_COMMIT:0:12}\\\""
 export LDFLAGS="-L$TALLOC -Wl,-z,max-page-size=16384"
 export SQLITE_DIR="$CACHE/sqlite-autoconf-$SQLITE_VERSION"
 make -C "$PROOT/src" clean
-make -C "$PROOT/src" -j"\${JOBS:-2}" proot \
+make -C "$PROOT/src" -j"${JOBS:-2}" proot \
   CC="$CC" LD="$CC" STRIP="$TC/llvm-strip" \
   OBJCOPY="$TC/llvm-objcopy" OBJDUMP="$TC/llvm-objdump" \
   PROOT_UNBUNDLE_LOADER=/nonexistent SQLITE_DIR="$SQLITE_DIR"
@@ -98,7 +98,7 @@ make -C "$PROOT/src" -j"\${JOBS:-2}" proot \
 "$TC/llvm-strip" -o "$OUT/libproot.so" "$PROOT/src/proot"
 cp "$PROOT/src/loader/loader" "$OUT/libproot-loader.so"
 chmod 755 "$OUT/libproot.so" "$OUT/libproot-loader.so"
-readelf -h "$OUT/libproot.so" | grep -q "AArch64" || fail "PRoot host is not ARM64."
-readelf -h "$OUT/libproot-loader.so" | grep -q "AArch64" || fail "PRoot loader is not ARM64."
+"$TC/llvm-readelf" -h "$OUT/libproot.so" | grep -q "AArch64" || fail "PRoot host is not ARM64."
+"$TC/llvm-readelf" -h "$OUT/libproot-loader.so" | grep -q "AArch64" || fail "PRoot loader is not ARM64."
 echo "Built ZaRust Android PRoot host tools:"
 ls -l "$OUT/libproot.so" "$OUT/libproot-loader.so"
