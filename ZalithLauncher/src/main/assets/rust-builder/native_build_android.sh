@@ -40,7 +40,7 @@ export CXX_aarch64_linux_android="$PREFIX/bin/clang++"
 export AR_aarch64_linux_android="$PREFIX/bin/llvm-ar"
 export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$linker"
 export CARGO_TARGET_AARCH64_LINUX_ANDROID_AR="$PREFIX/bin/llvm-ar"
-export CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS="-C link-arg=-Wl,-z,max-page-size=16384 -C link-arg=-landroid-execinfo -C link-arg=-lc++_shared"
+export CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS="-C link-arg=-Wl,-z,max-page-size=16384 -C link-arg=-L$PREFIX/lib -C link-arg=-l:libandroid-execinfo.a -C link-arg=-lc++_shared"
 
 tools="$cache/mixins-${MIXINS_REV:0:12}"
 if [ ! -x "$tools/bin/horizon-mixins" ]; then
@@ -117,7 +117,7 @@ fi
 cd "$build"
 export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-2}"
 export CARGO_TARGET_DIR="$build/target"
-export RUSTFLAGS="-C link-arg=-Wl,-z,max-page-size=16384 -C link-arg=-landroid-execinfo -C link-arg=-lc++_shared"
+export RUSTFLAGS="-C link-arg=-Wl,-z,max-page-size=16384 -C link-arg=-L$PREFIX/lib -C link-arg=-l:libandroid-execinfo.a -C link-arg=-lc++_shared"
 cargo build --locked --target aarch64-linux-android --profile fast -p horizon-android
 
 built="$CARGO_TARGET_DIR/aarch64-linux-android/fast/libhorizon_android.so"
