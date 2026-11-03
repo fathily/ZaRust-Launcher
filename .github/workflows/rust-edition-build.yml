@@ -1,0 +1,158 @@
+name: Build ZaRust with Starling Rust Edition
+
+on:
+  pull_request:
+    branches: [main, feature/rust-edition-horizon]
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: Android build variant
+        required: true
+        type: choice
+        options:
+          - Debug
+          - Release
+        default: Debug
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zarust-starling-rust-edition-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  starling-arm64:
+    name: Starling native engine + ZaRust (arm64-v8a)
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+      OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
+      CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
+      CARGO_TERM_COLOR: always
+      CARGO_BUILD_JOBS: 3
+      BUILD_VARIANT: ${{ github.event.inputs.variant || 'Debug' }}
+
+    steps:
+      - name: Checkout ZaRust Launcher
+        uses: actions/checkout@v7
+        with:
+          path: ZaRust
+
+      - name: Checkout pinned Starling Android source
+        uses: actions/checkout@v7
+        with:
+          repository: JuanLuci/starling
+          ref: 1d45d81bad530e20cfa18e9b47b1d7247b469ea4
+          path: ZaRust/StarlingEngine
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Node.js for JavaScript mods
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Use runner Android SDK and install Starling SDK/NDK pins
+        run: |
+          test -n "$ANDROID_HOME" || { echo "GitHub runner Android SDK is unavailable"; exit 1; }
+          sdkmanager_path=$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager -print -quit)
+          test -n "$sdkmanager_path"
+          set +o pipefail
+          yes | "$sdkmanager_path" --licenses >/dev/null
+          set -o pipefail
+          "$sdkmanager_path" \
+            "platform-tools" \
+            "platforms;android-37" \
+            "build-tools;35.0.0" \
+            "ndk;28.2.13676358" \
+            "ndk;25.2.9519653"
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> "$GITHUB_ENV"
+
+      - name: Set up Rust and cargo-ndk
+        run: |
+          rustup toolchain install 1.99.1 --profile minimal --target aarch64-linux-android
+          rustup default 1.99.1
+          rustup target list --installed --toolchain 1.99.1 | grep -Fx aarch64-linux-android
+          rustc --version
+          cargo install cargo-ndk --version 3.5.4 --locked
+          cargo ndk --version
+
+      - name: Cache Starling Cargo builds
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: zarust-starling-arm64
+          workspaces: |
+            ZaRust/StarlingEngine -> target
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Patch Starling for ZaRust account ownership
+        working-directory: ZaRust
+        run: python tools/rust-edition/patch_starling.py StarlingEngine
+
+      - name: Build the complete Starling Android engine
+        working-directory: ZaRust/StarlingEngine
+        run: python packaging/android/build_apk.py --profile quick
+
+      - name: Stage Starling native engine, bridge and game assets
+        working-directory: ZaRust
+        run: python tools/rust-edition/stage_starling.py --starling-root StarlingEngine
+
+      - name: Build ZaRust APK with embedded Starling
+        working-directory: ZaRust
+        run: |
+          chmod +x gradlew
+          ./gradlew ZalithLauncher:assemble${{ env.BUILD_VARIANT }} -Darch=arm64 -PrustEditionEnabled=true
+
+      - name: Verify package identity and embedded Starling runtime
+        working-directory: ZaRust
+        run: |
+          set -euo pipefail
+          variant="${BUILD_VARIANT,,}"
+          apk=$(find "ZalithLauncher/build/outputs/apk/$variant" -maxdepth 1 -type f -name '*.apk' -print -quit)
+          test -n "$apk"
+          aapt="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          "$aapt" dump badging "$apk" | grep -F "package: name='com.zarust.launcher'"
+          python - "$apk" <<'PY'
+          import sys, zipfile
+          apk = sys.argv[1]
+          required = [
+              "lib/arm64-v8a/libhorizon_android.so",
+              "lib/arm64-v8a/libstarling_java.so",
+              "lib/arm64-v8a/libstarling_javac.so",
+              "lib/arm64-v8a/libc++_shared.so",
+              "assets/prepare-kit.zip",
+              "assets/lowbudget.zip",
+              "assets/StarlingVisuals.zip",
+          ]
+          with zipfile.ZipFile(apk) as archive:
+              names = set(archive.namelist())
+              missing = [name for name in required if name not in names]
+              if missing:
+                  raise SystemExit("APK is missing: " + ", ".join(missing))
+              if "classes.dex" not in names:
+                  raise SystemExit("APK is missing Android dex classes")
+              if "AndroidManifest.xml" not in names or not archive.read("AndroidManifest.xml"):
+                  raise SystemExit("APK manifest is missing or empty")
+          print("Verified package id, Starling native libraries, game assets and DEX.")
+          PY
+          cp "$apk" "ZaRust-Starling-${BUILD_VARIANT}-arm64-v8a.apk"
+
+      - name: Upload ZaRust Starling APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZaRust-Starling-${{ env.BUILD_VARIANT }}-arm64-v8a
+          path: ZaRust/ZaRust-Starling-${{ env.BUILD_VARIANT }}-arm64-v8a.apk
+          if-no-files-found: error
+          retention-days: 14
