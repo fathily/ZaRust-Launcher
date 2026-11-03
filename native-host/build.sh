@@ -84,14 +84,15 @@ mkdir -p "$TALLOC/include"
 "$TC/llvm-ar" rcs "$TALLOC/libtalloc.a" "$TALLOC/talloc.o" "$TALLOC/replace_min.o"
 cp "$CACHE/talloc-$TALLOC_VERSION/talloc.h" "$TALLOC/include/"
 
-export CPPFLAGS="-I$TALLOC/include -DARG_MAX=131072 -DVERSION=\\\"dn-${PROOT_COMMIT:0:12}\\\""
-export LDFLAGS="-L$TALLOC -Wl,-z,max-page-size=16384"
-export SQLITE_DIR="$CACHE/sqlite-autoconf-$SQLITE_VERSION"
+SQLITE_DIR="$CACHE/sqlite-autoconf-$SQLITE_VERSION"
 make -C "$PROOT/src" clean
-make -C "$PROOT/src" -j"${JOBS:-2}" proot \
-  CC="$CC" LD="$CC" STRIP="$TC/llvm-strip" \
+CPPFLAGS="-I$TALLOC/include -DARG_MAX=131072 -DVERSION=\\\"dn-\${PROOT_COMMIT:0:12}\\\"" \
+LDFLAGS="-L$TALLOC -Wl,-z,max-page-size=16384" \
+SQLITE_DIR="$SQLITE_DIR" \
+make -C "$PROOT/src" -j"\${JOBS:-2}" proot \
+  CC="$CC" STRIP="$TC/llvm-strip" \
   OBJCOPY="$TC/llvm-objcopy" OBJDUMP="$TC/llvm-objdump" \
-  PROOT_UNBUNDLE_LOADER=/nonexistent SQLITE_DIR="$SQLITE_DIR"
+  PROOT_UNBUNDLE_LOADER=/nonexistent
 
 [ -s "$PROOT/src/proot" ] || fail "PRoot executable was not produced."
 [ -s "$PROOT/src/loader/loader" ] || fail "PRoot external loader was not produced."
