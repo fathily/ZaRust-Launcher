@@ -34,7 +34,7 @@ object RustNativeBuildManager {
 
     fun appVersion(context: Context): String {
         val raw = context.packageManager.getPackageInfo(context.packageName, 0).versionName
-            ?: error("Versi aplikasi tidak ditemukan")
+            ?: error("App version was not found")
         return raw.removeSuffix("-debug")
     }
 
@@ -88,39 +88,39 @@ object RustNativeBuildManager {
         onProgress: (done: Long, total: Long) -> Unit = { _, _ -> }
     ): String = withContext(Dispatchers.IO) {
         require(safeName.matches(build.name) && !build.name.startsWith('.')) {
-            "Nama native build tidak valid"
+            "Invalid native build name"
         }
         val version = appVersion(context)
         require(isTrustedAssetUrl(build.metadataUrl, "${build.name}.json")) {
-            "Alamat metadata native build tidak tepercaya"
+            "Untrusted native build metadata URL"
         }
         require(isTrustedAssetUrl(build.libraryUrl, "${build.name}.so")) {
-            "Alamat library native build tidak tepercaya"
+            "Untrusted native library URL"
         }
         val metadata = JSONObject(getText(build.metadataUrl))
         require(metadata.optString("version") == version) {
-            "Native build ini bukan untuk ZaRust $version"
+            "This native build was not compiled for ZaRust $version"
         }
         require(metadata.optString("abi") == "arm64-v8a") {
-            "Native build tidak cocok dengan ABI arm64-v8a"
+            "Native build ABI does not match arm64-v8a"
         }
         require(metadata.optString("library") == LIBRARY_NAME) {
-            "Nama library native tidak cocok"
+            "Native library name does not match"
         }
         val expectedHash = metadata.optString("sha256")
-        require(sha256Pattern.matches(expectedHash)) { "SHA-256 native build tidak valid" }
+        require(sha256Pattern.matches(expectedHash)) { "Native build SHA-256 is invalid" }
         val expectedSize = metadata.optLong("size", -1L)
         require(expectedSize in 1L..(200L * 1024L * 1024L)) {
-            "Ukuran native build di luar batas yang diizinkan"
+            "Native build size is outside the allowed limit"
         }
 
         val nativeRoot = File(context.filesDir, "native")
         val folder = File(nativeRoot, build.name)
         require(folder.canonicalFile.parentFile == nativeRoot.canonicalFile) {
-            "Lokasi native build tidak valid"
+            "Invalid native build location"
         }
         require(folder.isDirectory || folder.mkdirs()) {
-            "Tidak bisa membuat folder native build"
+            "Could not create the native build folder"
         }
         val part = File(folder, "$LIBRARY_NAME.part")
         val target = File(folder, LIBRARY_NAME)
@@ -130,7 +130,7 @@ object RustNativeBuildManager {
             val connection = open(build.libraryUrl)
             try {
                 val code = connection.responseCode
-                require(code in 200..299) { "Download native library gagal: HTTP $code" }
+                require(code in 200..299) { "Native library download failed: HTTP $code" }
                 val total = connection.getHeaderFieldLong("Content-Length", expectedSize)
                     .takeIf { it > 0 } ?: expectedSize
                 connection.inputStream.use { input ->
@@ -141,7 +141,7 @@ object RustNativeBuildManager {
                             if (count < 0) break
                             received += count
                             require(received <= expectedSize) {
-                                "File native build lebih besar dari metadata"
+                                "Native build file is larger than its manifest"
                             }
                             digest.update(buffer, 0, count)
                             output.write(buffer, 0, count)
@@ -155,21 +155,21 @@ object RustNativeBuildManager {
             }
 
             require(received == expectedSize) {
-                "Ukuran file native tidak cocok: $received / $expectedSize byte"
+                "Native file size mismatch: $received / $expectedSize bytes"
             }
             val actualHash = digest.digest().joinToString("") { byte ->
                 (byte.toInt() and 0xff).toString(16).padStart(2, '0')
             }
             require(actualHash == expectedHash) {
-                "SHA-256 tidak cocok. File dihapus agar library rusak tidak dipakai."
+                "SHA-256 mismatch. The downloaded file was removed to prevent loading a corrupted library."
             }
             val magic = part.inputStream().use { input -> ByteArray(4).also { input.read(it) } }
             require(magic.contentEquals(byteArrayOf(0x7f, 0x45, 0x4c, 0x46))) {
-                "File hasil build bukan library ELF Android"
+                "The downloaded file is not an Android ELF library"
             }
 
-            if (target.exists() && !target.delete()) error("Tidak bisa mengganti library lama")
-            check(part.renameTo(target)) { "Gagal menyimpan library native" }
+            if (target.exists() && !target.delete()) error("Could not replace the previous native library")
+            check(part.renameTo(target)) { "Could not save the native library" }
             atomicWrite(File(folder, "for"), version)
             atomicWrite(File(folder, "build.json"), metadata.toString(2))
             atomicWrite(File(nativeRoot, "current"), build.name)
@@ -192,11 +192,11 @@ object RustNativeBuildManager {
         }
         if (target.exists() && !target.delete()) {
             temp.delete()
-            error("Tidak bisa mengganti berkas " + target.name)
+            error("Could not replace file " + target.name)
         }
         check(temp.renameTo(target)) {
             temp.delete()
-            "Gagal menyimpan " + target.name
+            "Could not save " + target.name
         }
     }
 
@@ -213,7 +213,7 @@ object RustNativeBuildManager {
         try {
             val code = connection.responseCode
             require(code in 200..299) {
-                if (code == 404) "Belum ada native build yang diterbitkan untuk ZaRust."
+                if (code == 404) "No native build has been published for ZaRust yet."
                 else "GitHub API mengembalikan HTTP $code"
             }
             return connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
@@ -224,9 +224,9 @@ object RustNativeBuildManager {
 
     private fun open(value: String): HttpURLConnection {
         val url = URL(value)
-        require(url.protocol == "https") { "Koneksi harus menggunakan HTTPS" }
+        require(url.protocol == "https") { "Connection must use HTTPS" }
         require(url.host == "api.github.com" || url.host == "github.com") {
-            "Host download tidak dipercaya"
+            "Download host is not trusted"
         }
         return (url.openConnection() as HttpURLConnection).apply {
             connectTimeout = 20_000
