@@ -294,6 +294,10 @@ object ZaRustOnDeviceNativeBuilder {
                 require(manifest.optString("mixins") == HORIZON_MIXINS_REVISION) {
                     "Native mod '$id' requires a different Horizon Mixins revision. This builder currently supports $HORIZON_MIXINS_REVISION."
                 }
+                val declaredVersion = manifest.optString("version")
+                require(declaredVersion.isNotBlank()) {
+                    "Native mod '$id' does not declare a version."
+                }
 
                 val sourcePrefix = "mixins/$id/"
                 val destination = File(buildMods, id)
@@ -332,8 +336,22 @@ object ZaRustOnDeviceNativeBuilder {
                         }
                     }
                 }
-                require(File(destination, "horizon-mixin.toml").isFile) {
+                val mixinManifest = File(destination, "horizon-mixin.toml")
+                require(mixinManifest.isFile) {
                     "Native mod '$id' has no mixins/$id/horizon-mixin.toml file."
+                }
+                val mixinText = mixinManifest.readText(Charsets.UTF_8)
+                val tomlId = Regex("(?m)^id\\s*=\\s*\"([a-z0-9][a-z0-9_-]{0,40})\"\\s*$")
+                    .find(mixinText)?.groupValues?.get(1)
+                val tomlVersion = Regex("(?m)^version\\s*=\\s*\"([^\\"]+)\"\\s*$")
+                    .find(mixinText)?.groupValues?.get(1)
+                require(tomlId == id && tomlVersion == declaredVersion) {
+                    "Native mod '$id' has mismatched JSON and TOML identity/version fields."
+                }
+                val revisionLine = Regex("(?m)^horizon_revision\\s*=\\s*\"([^\\"]+)\"\\s*$")
+                    .find(mixinText)?.groupValues?.get(1)
+                require(revisionLine == null || revisionLine.matches(Regex("[0-9a-f]{40}"))) {
+                    "Native mod '$id' has an invalid Horizon revision pin."
                 }
                 staged += destination
             }
