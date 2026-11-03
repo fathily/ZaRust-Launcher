@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
@@ -104,6 +105,7 @@ fun RustEditionSettingsScreen() {
     }
     var nativeBuilderPreparing by remember { mutableStateOf(false) }
     var nativeBuildRunning by remember { mutableStateOf(false) }
+    var showNativeTrustDialog by remember { mutableStateOf(false) }
     var nativeBuilderMessage by remember { mutableStateOf<String?>(null) }
     var nativeBuilderLog by remember { mutableStateOf<List<String>>(emptyList()) }
     var activeNativeBuild by remember {
@@ -466,7 +468,7 @@ fun RustEditionSettingsScreen() {
                         Text(if (nativeBuilderPreparing) "Preparing…" else "Prepare Build Tools")
                     }
                     Button(
-                        onClick = { buildNativeOnDevice() },
+                        onClick = { showNativeTrustDialog = true },
                         enabled = !nativeBuilderPreparing && !nativeBuildRunning &&
                             environmentStatus.nativeRunnerInstalled &&
                             starlingBase.isNotBlank()
@@ -521,6 +523,37 @@ fun RustEditionSettingsScreen() {
                     color = MaterialTheme.colorScheme.error
                 )
             }
+        }
+
+        if (showNativeTrustDialog) {
+            val importedNames = ZaRustOnDeviceNativeBuilder.importedHnmods(context)
+                .joinToString { it.name }
+                .ifBlank { "No HNMOD packages (base engine build only)" }
+            AlertDialog(
+                onDismissRequest = { showNativeTrustDialog = false },
+                title = { Text("Trust and build native code?") },
+                text = {
+                    Text(
+                        "The selected Starling source and these native packages will be compiled locally: " +
+                            importedNames + ". HNMOD code and Cargo build scripts are executable code, " +
+                            "are not sandboxed, and can access data available to ZaRust. Only continue " +
+                            "if you have reviewed and trust every source. This build runs on this device."
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showNativeTrustDialog = false
+                            buildNativeOnDevice()
+                        }
+                    ) { Text("I trust these sources — Build") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showNativeTrustDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
 
         pickerMessage?.let {
