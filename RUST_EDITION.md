@@ -11,46 +11,47 @@ The Android build checks out [JuanLuci/Starling](https://github.com/JuanLuci/sta
 
 [Horizon Rust](https://github.com/horizon-rust/horizon) is the upstream engine repository. Its current mainline is not a drop-in replacement for the Android port: Android activity glue, JNI, storage setup, and Android build packaging must remain compatible. Mainline changes therefore need to be reviewed and ported through the Android branch rather than blindly replacing the Starling source. The [Vasysik Horizon Android repository](https://github.com/Vasysik/horizon-android) remains a related reference implementation.
 
-## Mods
+## Mods and local native builds
 
-## Android native mod builds
+- `.hmod`: content/data mod package. ZaRust imports it into the Rust Edition mod folder.
+- `.hshader`: Horizon shader package, stored in the Rust Edition shaderpacks folder.
+- `.hnmod`: Horizon native source bundle. ZaRust validates the ZIP path structure, `horizon-native.json`, the mod ID, schema, and pinned Horizon Mixins revision before it is eligible for local compilation.
 
-The Android native-mod workflow is based on Starling's cloud build process. It applies reviewed Horizon mixin bundles to the pinned Starling Android source and compiles a matching `libhorizon_android.so` for **arm64-v8a**. A versioned `.so` and JSON manifest are published in the `native-builds` prerelease; ZaRust verifies the library's SHA-256 before selecting it for the next game launch.
+### ZaRust Native Builder
 
-Only reviewed bundles committed under `tools/rust-edition/native-mods/<id>/mixins/<id>/` can be built. The current bundled example is Wrench. A file imported from the device remains staged until its source is reviewed and committed to that approved folder. Native mods are not sandboxed.
+The on-device builder is designed to compile `libhorizon_android.so` on the Android device itself. It does not use GitHub Actions, a cloud build worker, a second launcher app, or the Termux app.
 
-- .hmod: content/data mod package. ZaRust imports it into the Rust Edition mod folder.
-- .hnmod: native Rust source bundle. ZaRust validates its ZIP structure and horizon-native.json manifest, then stores it under the app-private rust-edition/imported-hnmod/ folder.
+1. Open **Settings → Rust Edition → ZaRust Native Builder**.
+2. Prepare the private build tools. ZaRust installs an ARM64 userspace, Rust/Cargo, Clang/LLD, and Android NDK sysroot into its own app-private storage. A small PRoot host runner is bundled into the ZaRust APK at app build time so the compiler can run inside Android's app sandbox.
+3. Enter a Starling base reference: the default is the pinned Android-compatible commit `1d45d81bad530e20cfa18e9b47b1d7247b469ea4`. A branch, tag, or full commit SHA can be selected; ZaRust resolves it to a fixed commit before building.
+4. Import one or more `.hnmod` packages in the **Native Mods · HNMOD** section.
+5. Press **Build Native Here**. ZaRust starts from a clean copy of the selected Starling commit, applies the imported native mixin bundles, and compiles the ARM64 library locally.
+6. The resulting library and JSON manifest are checked for app version, ABI, ELF machine type, file size, and SHA-256 before the runtime selector is updated.
+7. Restart Rust Edition to load the custom build. Use **Use Built-in Runtime** to return to the library bundled in the installed ZaRust APK.
 
-**Important:** .hnmod import is staging only at this point. It does not make a native mod active in the running Android engine. Horizon native mods must be built against matching Horizon and Horizon Mixins revisions and included in a compatible engine build. ZaRust does not yet perform that Android native-mod build dynamically. Do not treat a staged package as enabled.
+Each build begins from the selected Starling base, not from a previous modded source tree. The source snapshot and Cargo caches are kept in ZaRust's private `files/native-builder/` directory. A different Starling base or mod set receives a different build identity.
 
-Java .jar, Fabric, Forge, NeoForge, Iris, and Sodium mods are not automatically compatible with Horizon.
+### Device requirements and current limitations
+
+- ARM64 Android devices only. The PRoot host runner is packaged for `arm64-v8a`.
+- At least 5 GB of free internal storage is required by the current preflight check; more free space is recommended for the Rust target cache and JavaScript module engine.
+- An internet connection is required for the first setup and for downloading a Starling source revision and Cargo dependencies. Source retrieval happens inside ZaRust; it does not open a GitHub page or start Actions. Previously downloaded sources and build dependencies are cached locally.
+- Native compilation can be memory-intensive and may take a long time on mobile hardware. The default Cargo job count is deliberately limited.
+- A downloaded `.hnmod` remains inactive until the local native compile succeeds and its resulting library passes validation.
+- Native mod code is executable code inside the game process and is not sandboxed. Only build source packages you trust.
+- This builder is an experimental Android port. The PRoot host binary and APK packaging need a successful CI build, and the first end-to-end native compile plus runtime launch still need physical-device validation. Do not treat the feature as release-ready until those checks pass.
+
+Java `.jar`, Fabric, Forge, NeoForge, Iris, and Sodium mods are not automatically compatible with Horizon.
 
 ## Accounts, storage, and controls
 
-ZaRust passes the selected profile to the embedded engine. Rust Edition uses its own app-private data/runtime storage and does not reuse Java Edition's versions/, mods/, or Java runtime directories.
+ZaRust passes the selected profile to the embedded engine. Rust Edition uses its own app-private data/runtime storage and does not reuse Java Edition's `versions/`, `mods/`, or Java runtime directories.
 
-When **ZaRust Controls** is selected, the launcher reads the selected Control Manager layout and exports its mapped positions and key bindings to the Rust engine's touch-layout.json before launch. Every unmapped built-in touch action is written as off, and the adapter refuses to launch if it cannot find a valid movement control instead of silently using Starling's default stick. The game surface is still a native Rust activity, so the native engine renders and receives those mapped controls; this is not the launcher's Compose overlay being drawn over a separate Java game surface. Physical-device testing is still required for each control layout and device aspect ratio.
+When **ZaRust Controls** is selected, the launcher reads the selected Control Manager layout and exports its mapped positions and key bindings to the Rust engine's `touch-layout.json` before launch. Every unmapped built-in touch action is written as off, and the adapter refuses to launch if it cannot find a valid movement control instead of silently using Starling's default stick. The game surface is still a native Rust activity, so the native engine renders and receives those mapped controls; this is not the launcher's Compose overlay being drawn over a separate Java game surface. Physical-device testing is still required for each control layout and device aspect ratio.
 
-## Build
+## Build the ZaRust APK
 
-### Build only the installable native library (no APK)
-
-After the **Build ZaRust native Rust library** workflow is available on the default branch:
-
-1. Open the repository's Actions tab and select **Build ZaRust native Rust library**.
-2. Choose **Run workflow**.
-3. Keep **ZaRust version** at the version installed in the app (currently 2.4.11).
-4. Enter approved native mod IDs. The bundled example is `wrench`.
-5. Run the workflow. It compiles only `libhorizon_android.so` for **arm64-v8a**, verifies the version/ABI/size/SHA-256 manifest, and publishes the library plus JSON manifest to the `native-builds` prerelease. It does **not** assemble Starling.apk or ZaRust.apk.
-6. In ZaRust, open **Settings → Rust Edition → Native Build Manager**, tap **Refresh Builds**, then **Download & Activate**. Restart Rust Edition to load the selected library.
-7. To return to the library bundled in the installed ZaRust APK, tap **Use Built-in Runtime**.
-
-Only reviewed bundles committed under `tools/rust-edition/native-mods/<id>/mixins/<id>/` can be built. A device-imported .hnmod is staging only until reviewed and added to an approved bundle directory. Native mods are not sandboxed.
-
-### Build the full ZaRust APK
-
-The separate workflow **Build ZaRust with Starling Rust Edition** compiles the embedded engine and packages it into the ZaRust APK. Current Rust Edition target: **arm64-v8a**. This workflow is for app releases and is not needed when building only a custom native library. The ordinary Java Edition build remains separate.
+The standard Android APK build still compiles and packages the embedded Starling engine into ZaRust. The on-device builder's PRoot host runner is compiled for `arm64-v8a` and packaged in the APK's `jniLibs/arm64-v8a` when Rust Edition is enabled. This is an APK packaging prerequisite only; after the app is installed, the user compiles custom native libraries directly on the device. The ordinary Java Edition build remains separate.
 
 ## Credits and licenses
 
