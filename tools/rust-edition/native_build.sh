@@ -74,12 +74,39 @@ rsync -r --checksum --delete --exclude /target/ --exclude "/$manifest" \
 git -C "$source_dir" show "HEAD:$manifest" > "$work/manifest"
 cmp -s "$work/manifest" "$build/$manifest" || cp "$work/manifest" "$build/$manifest"
 
-rm -f "$build"/target/android/starling-*.apk
-(cd "$build" && python3 packaging/android/build_apk.py --profile "$profile")
+# Build the embedded JavaScript engine when its sources have changed. This is part
+# of the native game's runtime, not an Android APK packaging step.
+js_dir=$build/crates/starling-mod-sdk/js-engine
+js_engine=$build/target/js-engine/engine.wasm
+if [ ! -s "$js_engine" ] || [ "$js_engine" -ot "$js_dir/engine.js" ] || \
+   [ "$js_engine" -ot "$js_dir/build.mjs" ] || [ "$js_engine" -ot "$js_dir/package.json" ] || \
+   [ "$js_engine" -ot "$build/crates/starling-mod-sdk/wit/starling.wit" ]; then
+  if [ ! -d "$js_dir/node_modules" ]; then
+    (cd "$js_dir" && npm install --no-audit --no-fund)
+  fi
+  (cd "$js_dir" && npm run build)
+fi
 
-library=$build/target/android/libhorizon_android.so
-[ -s "$library" ] || fail "Android game library not produced"
-cp "$library" "$out/libhorizon_android.so"
+android_home=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}
+[ -n "$android_home" ] || fail "ANDROID_HOME / ANDROID_SDK_ROOT is not set"
+ndk=${ANDROID_NDK_HOME:-$android_home/ndk/28.2.13676358}
+[ -d "$ndk" ] || fail "Android NDK not found: $ndk"
+llvm_strip=$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip
+[ -x "$llvm_strip" ] || fail "llvm-strip not found: $llvm_strip"
+
+export ANDROID_HOME="$android_home"
+export ANDROID_NDK_HOME="$ndk"
+export RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }-C link-arg=-Wl,-z,max-page-size=16384"
+
+# Compile only the arm64-v8a game library. Do not call build_apk.py here: that
+# script also assembles and signs a stand-alone Starling APK, which ZaRust does not need.
+cargo ndk -t arm64-v8a --platform 26 build --profile "$profile" -p horizon-android
+
+built=$build/target/aarch64-linux-android/$profile/libhorizon_android.so
+[ -s "$built" ] || fail "Android game library not produced: $built"
+"$llvm_strip" --strip-unneeded -o "$out/libhorizon_android.so" "$built"
+[ -s "$out/libhorizon_android.so" ] || fail "Stripped Android game library is empty"
+readelf -h "$out/libhorizon_android.so" | grep -q "AArch64" || fail "Native library is not arm64-v8a"
 
 python3 - "$build" "$work/mods" "$out" "$key" "$commit" "$profile" "$MIXINS_REV" "$app_version" <<'PY'
 import hashlib, json, pathlib, re, sys, tomllib
