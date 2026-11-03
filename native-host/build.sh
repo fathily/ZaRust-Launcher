@@ -86,10 +86,10 @@ cp "$CACHE/talloc-$TALLOC_VERSION/talloc.h" "$TALLOC/include/"
 
 SQLITE_DIR="$CACHE/sqlite-autoconf-$SQLITE_VERSION"
 make -C "$PROOT/src" clean
-CPPFLAGS="-I$TALLOC/include -DARG_MAX=131072 -DVERSION=\\\"dn-\${PROOT_COMMIT:0:12}\\\"" \
+CPPFLAGS="-I$TALLOC/include -DARG_MAX=131072 -DVERSION=\\\"dn-${PROOT_COMMIT:0:12}\\\"" \
 LDFLAGS="-L$TALLOC -Wl,-z,max-page-size=16384" \
 SQLITE_DIR="$SQLITE_DIR" \
-make -C "$PROOT/src" -j"\${JOBS:-2}" proot \
+make -C "$PROOT/src" -j"${JOBS:-2}" proot \
   CC="$CC" STRIP="$TC/llvm-strip" \
   OBJCOPY="$TC/llvm-objcopy" OBJDUMP="$TC/llvm-objdump" \
   PROOT_UNBUNDLE_LOADER=/nonexistent
