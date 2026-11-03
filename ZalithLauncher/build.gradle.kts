@@ -29,6 +29,7 @@ val defaultKeyPassword = project.findProperty("default_key_password") as? String
 val defaultCurseForgeApiKey = project.findProperty("curseforge_api_key") as? String
 
 val projectArch: String = System.getProperty("arch", "all")
+val zarustProotNdkVersion = "25.2.9519653"
 
 fun getKeyFromLocal(envKey: String, fileName: String? = null, default: String? = null): String {
     val key = System.getenv(envKey)
@@ -101,7 +102,7 @@ android {
         }
     }
 
-    ndkVersion = "25.2.9519653"
+    ndkVersion = zarustProotNdkVersion
 
     externalNativeBuild {
         ndkBuild {
@@ -130,6 +131,35 @@ android {
             isIncludeAndroidResources = true
         }
     }
+}
+
+val buildZaRustProotHost by tasks.registering(Exec::class) {
+    val nativeHostScript = rootProject.file("native-host/build.sh")
+    val ndkDirectory = File(android.sdkDirectory, "ndk/$zarustProotNdkVersion")
+    val jniOutput = rootProject.file("ZalithLauncher/src/main/jniLibs/arm64-v8a")
+    inputs.file(nativeHostScript)
+    outputs.files(
+        File(jniOutput, "libproot.so"),
+        File(jniOutput, "libproot-loader.so")
+    )
+    onlyIf {
+        project.findProperty("rustEditionEnabled") == "true" &&
+            (projectArch == "all" || projectArch == "arm64")
+    }
+    doFirst {
+        check(nativeHostScript.isFile) {
+            "ZaRust on-device Rust Builder requires native-host/build.sh."
+        }
+        check(ndkDirectory.isDirectory) {
+            "Android NDK $zarustProotNdkVersion is missing at $ndkDirectory."
+        }
+        environment("ANDROID_NDK_HOME", ndkDirectory.absolutePath)
+        commandLine("bash", nativeHostScript.absolutePath)
+    }
+}
+
+tasks.matching { it.name == "preBuild" }.configureEach {
+    dependsOn(buildZaRustProotHost)
 }
 
 androidComponents {
