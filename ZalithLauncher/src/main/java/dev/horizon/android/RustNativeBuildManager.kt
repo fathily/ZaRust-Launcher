@@ -7,28 +7,9 @@ import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 import java.io.RandomAccessFile
-import java.net.HttpURLConnection
-import java.net.URL
 import java.security.MessageDigest
 
-data class RustNativeBuild(
-    val name: String,
-    val mods: List<String>,
-    val metadataUrl: String,
-    val libraryUrl: String
-) {
-    val label: String
-        get() = mods.joinToString(", ") { id ->
-            id.replace('-', ' ').replace('_', ' ')
-                .split(' ')
-                .joinToString(" ") { it.replaceFirstChar(Char::uppercase) }
-        }
-}
-
-/** Downloads version-matched Android game libraries built by this repository's isolated CI. */
 object RustNativeBuildManager {
-    private const val RELEASE_API =
-        "https://api.github.com/repos/fathily/ZaRust-Launcher/releases/tags/native-builds"
     private const val LIBRARY_NAME = "libhorizon_android.so"
     private val safeName = Regex("[a-z0-9][a-z0-9._-]{0,120}")
     private val sha256Pattern = Regex("[0-9a-f]{64}")
@@ -79,138 +60,6 @@ object RustNativeBuildManager {
         return library.takeIf { magic }
     }
 
-    suspend fun list(context: Context): List<RustNativeBuild> = withContext(Dispatchers.IO) {
-        val version = appVersion(context)
-        val release = JSONObject(getText(RELEASE_API))
-        val assets = release.optJSONArray("assets")
-            ?: return@withContext emptyList()
-        val urls = HashMap<String, String>()
-        for (i in 0 until assets.length()) {
-            val asset = assets.optJSONObject(i) ?: continue
-            val name = asset.optString("name")
-            val url = asset.optString("browser_download_url")
-            if (safeName.matches(name) && isTrustedAssetUrl(url, name)) {
-                urls[name] = url
-            }
-        }
-        val prefix = "v${version}__"
-        urls.keys.asSequence()
-            .filter { it.endsWith(".json") && it.startsWith(prefix) }
-            .mapNotNull { jsonName ->
-                val buildName = jsonName.removeSuffix(".json")
-                val ids = buildName.removePrefix(prefix).split("__")
-                val libraryUrl = urls["$buildName.so"]
-                val jsonUrl = urls[jsonName]
-                if (ids.isEmpty() || ids.any { !safeName.matches(it) } ||
-                    jsonUrl == null || libraryUrl == null
-                ) null else RustNativeBuild(buildName, ids, jsonUrl, libraryUrl)
-            }
-            .sortedWith(compareBy<RustNativeBuild> { it.mods.size }.thenBy { it.name })
-            .toList()
-    }
-
-    suspend fun install(
-        context: Context,
-        build: RustNativeBuild,
-        onProgress: (done: Long, total: Long) -> Unit = { _, _ -> }
-    ): String = withContext(Dispatchers.IO) {
-        require(safeName.matches(build.name) && !build.name.startsWith('.')) {
-            "Invalid native build name"
-        }
-        val version = appVersion(context)
-        require(isTrustedAssetUrl(build.metadataUrl, "${build.name}.json")) {
-            "Untrusted native build metadata URL"
-        }
-        require(isTrustedAssetUrl(build.libraryUrl, "${build.name}.so")) {
-            "Untrusted native library URL"
-        }
-        val metadata = JSONObject(getText(build.metadataUrl))
-        require(metadata.optString("version") == version) {
-            "This native build was not compiled for ZaRust $version"
-        }
-        require(metadata.optString("abi") == "arm64-v8a") {
-            "Native build ABI does not match arm64-v8a"
-        }
-        require(metadata.optString("library") == LIBRARY_NAME) {
-            "Native library name does not match"
-        }
-        val expectedHash = metadata.optString("sha256")
-        require(sha256Pattern.matches(expectedHash)) { "Native build SHA-256 is invalid" }
-        val expectedSize = metadata.optLong("size", -1L)
-        require(expectedSize in 1L..(200L * 1024L * 1024L)) {
-            "Native build size is outside the allowed limit"
-        }
-
-        val nativeRoot = File(context.filesDir, "native")
-        val folder = File(nativeRoot, build.name)
-        require(folder.canonicalFile.parentFile == nativeRoot.canonicalFile) {
-            "Invalid native build location"
-        }
-        require(folder.isDirectory || folder.mkdirs()) {
-            "Could not create the native build folder"
-        }
-        val part = File(folder, "$LIBRARY_NAME.part")
-        val target = File(folder, LIBRARY_NAME)
-        val digest = MessageDigest.getInstance("SHA-256")
-        var received = 0L
-        try {
-            val connection = open(build.libraryUrl)
-            try {
-                val code = connection.responseCode
-                require(code in 200..299) { "Native library download failed: HTTP $code" }
-                val total = connection.getHeaderFieldLong("Content-Length", expectedSize)
-                    .takeIf { it > 0 } ?: expectedSize
-                connection.inputStream.use { input ->
-                    FileOutputStream(part).use { output ->
-                        val buffer = ByteArray(256 * 1024)
-                        while (true) {
-                            val count = input.read(buffer)
-                            if (count < 0) break
-                            received += count
-                            require(received <= expectedSize) {
-                                "Native build file is larger than its manifest"
-                            }
-                            digest.update(buffer, 0, count)
-                            output.write(buffer, 0, count)
-                            onProgress(received, total)
-                        }
-                        output.fd.sync()
-                    }
-                }
-            } finally {
-                connection.disconnect()
-            }
-
-            require(received == expectedSize) {
-                "Native file size mismatch: $received / $expectedSize bytes"
-            }
-            val actualHash = digest.digest().joinToString("") { byte ->
-                (byte.toInt() and 0xff).toString(16).padStart(2, '0')
-            }
-            require(actualHash == expectedHash) {
-                "SHA-256 mismatch. The downloaded file was removed to prevent loading a corrupted library."
-            }
-            val magic = part.inputStream().use { input -> ByteArray(4).also { input.read(it) } }
-            require(magic.contentEquals(byteArrayOf(0x7f, 0x45, 0x4c, 0x46))) {
-                "The downloaded file is not an Android ELF library"
-            }
-
-            if (target.exists() && !target.delete()) error("Could not replace the previous native library")
-            check(part.renameTo(target)) { "Could not save the native library" }
-            atomicWrite(File(folder, "for"), version)
-            atomicWrite(File(folder, "build.json"), metadata.toString(2))
-            atomicWrite(File(nativeRoot, "current"), build.name)
-            build.name
-        } catch (error: Throwable) {
-            part.delete()
-            throw error
-        }
-    }
-
-    /**
-     * Installs a native library compiled locally by ZaRust. No release or network asset is used.
-     * The library and manifest are verified again before the runtime selector is updated.
-     */
     suspend fun installLocal(
         context: Context,
         buildName: String,
@@ -340,40 +189,4 @@ object RustNativeBuildManager {
         }
     }
 
-    private fun isTrustedAssetUrl(value: String, name: String): Boolean = runCatching {
-        val url = URL(value)
-        url.protocol == "https" &&
-            url.host == "github.com" &&
-            url.path.startsWith("/fathily/ZaRust-Launcher/releases/download/native-builds/") &&
-            url.path.endsWith("/$name")
-    }.getOrDefault(false)
-
-    private fun getText(url: String): String {
-        val connection = open(url)
-        try {
-            val code = connection.responseCode
-            require(code in 200..299) {
-                if (code == 404) "No native build has been published for ZaRust yet."
-                else "GitHub API mengembalikan HTTP $code"
-            }
-            return connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
-        } finally {
-            connection.disconnect()
-        }
-    }
-
-    private fun open(value: String): HttpURLConnection {
-        val url = URL(value)
-        require(url.protocol == "https") { "Connection must use HTTPS" }
-        require(url.host == "api.github.com" || url.host == "github.com") {
-            "Download host is not trusted"
-        }
-        return (url.openConnection() as HttpURLConnection).apply {
-            connectTimeout = 20_000
-            readTimeout = 90_000
-            requestMethod = "GET"
-            setRequestProperty("User-Agent", "ZaRust-Launcher")
-            setRequestProperty("Accept", "application/vnd.github+json")
-        }
-    }
 }
