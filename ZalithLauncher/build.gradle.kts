@@ -112,7 +112,7 @@ android {
     packaging {
         jniLibs {
             useLegacyPackaging = true
-            pickFirsts += listOf("**/libbytehook.so")
+            pickFirsts += listOf("**/libbytehook.so", "**/libopenal.so")
         }
     }
 
