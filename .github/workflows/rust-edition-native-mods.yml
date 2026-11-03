@@ -136,11 +136,19 @@ jobs:
         run: |
           set -euo pipefail
           sudo swapoff -a || true
-          swap_file="$RUNNER_TEMP/zarust-native.swap"
-          sudo fallocate -l 12G "$swap_file"
+          swap_dir=/mnt
+          swap_size=20G
+          available_gb=$(df --output=avail -BG "$swap_dir" | tail -1 | tr -dc '0-9')
+          if [[ "${available_gb:-0}" -lt 30 ]]; then
+            swap_dir="$RUNNER_TEMP"
+            swap_size=10G
+          fi
+          swap_file="$swap_dir/zarust-native.swap"
+          sudo fallocate -l "$swap_size" "$swap_file"
           sudo chmod 600 "$swap_file"
           sudo mkswap "$swap_file" >/dev/null
           sudo swapon "$swap_file"
+          swapon --show
 
       - name: Compile only libhorizon_android.so
         shell: bash
