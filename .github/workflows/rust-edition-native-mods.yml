@@ -15,7 +15,7 @@ on:
         default: "wrench"
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: zarust-native-library-${{ github.ref }}
@@ -26,6 +26,10 @@ jobs:
     name: Compile arm64-v8a Horizon library (no APK)
     runs-on: ubuntu-latest
     timeout-minutes: 180
+    permissions:
+      contents: read
+    outputs:
+      build_name: ${{ steps.validate.outputs.build_name }}
     env:
       APP_VERSION: ${{ inputs.app_version }}
       MODS_INPUT: ${{ inputs.mods }}
@@ -189,21 +193,6 @@ jobs:
           cp output/libhorizon_android.so "output/$build_name.so"
           cp output/build.json "output/$build_name.json"
 
-      - name: Publish version-matched native library to ZaRust
-        env:
-          GH_TOKEN: ${{ github.token }}
-          BUILD_NAME: ${{ steps.validate.outputs.build_name }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          gh release view native-builds -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
-            gh release create native-builds -R "$GITHUB_REPOSITORY" \
-              --prerelease --latest=false \
-              --title "ZaRust native Rust libraries" \
-              --notes "Version-matched arm64-v8a Horizon libraries. Each .so is accompanied by a JSON manifest containing the app version, ABI and SHA-256."
-          gh release upload native-builds -R "$GITHUB_REPOSITORY" --clobber \
-            "output/$BUILD_NAME.so" "output/$BUILD_NAME.json"
-
       - name: Upload native library build artifact
         uses: actions/upload-artifact@v4
         with:
@@ -214,8 +203,32 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Explain where to install the result
-        if: success()
+  publish-native-library:
+    name: Publish verified native library
+    needs: build-native-library
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download verified native library artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build-native-library.outputs.build_name }}
+          path: built
+
+      - name: Publish version-matched native library to ZaRust
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_NAME: ${{ needs.build-native-library.outputs.build_name }}
+        shell: bash
         run: |
-          echo "Native library build completed; no ZaRust APK was built."
-          echo "In ZaRust: Rust Edition > Native Build Manager > Refresh Build > Download & Activate."
+          set -euo pipefail
+          test -s "built/$BUILD_NAME.so"
+          test -s "built/$BUILD_NAME.json"
+          gh release view native-builds -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \\
+            gh release create native-builds -R "$GITHUB_REPOSITORY" \\
+              --prerelease --latest=false \\
+              --title "ZaRust native Rust libraries" \\
+              --notes "Version-matched arm64-v8a Horizon libraries. Each .so is accompanied by a JSON manifest containing the app version, ABI and SHA-256."
+          gh release upload native-builds -R "$GITHUB_REPOSITORY" --clobber \\
+            "built/$BUILD_NAME.so" "built/$BUILD_NAME.json"
