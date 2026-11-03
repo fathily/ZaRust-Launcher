@@ -98,7 +98,9 @@ object ZaRustNativeBuildEnvironment {
             rustStdInstalled = File(prefix, "lib/rustlib/aarch64-linux-android/lib")
                 .listFiles()?.any { it.name.startsWith("libstd-") && it.name.endsWith(".rlib") } == true &&
                 File(prefix, "lib/rustlib/aarch64-linux-android/lib")
-                    .listFiles()?.any { it.name.startsWith("libproc_macro-") && it.name.endsWith(".rlib") } == true,
+                    .listFiles()?.any { it.name.startsWith("libcore-") && it.name.endsWith(".rlib") } == true &&
+                File(prefix, "lib/rustlib/aarch64-linux-android/lib")
+                    .listFiles()?.any { it.name.startsWith("liballoc-") && it.name.endsWith(".rlib") } == true,
             ndkSysrootInstalled = File(prefix, "share/ndk-sysroot").isDirectory ||
                 File(prefix, "opt/ndk-sysroot").isDirectory ||
                 File(prefix, "include/android").isDirectory,
@@ -171,7 +173,8 @@ object ZaRustNativeBuildEnvironment {
                     "test -d $PREFIX/share/ndk-sysroot -o -d $PREFIX/opt/ndk-sysroot " +
                     "-o -d $PREFIX/include/android && " +
                     "test -n \"$(find $PREFIX/lib/rustlib/aarch64-linux-android/lib -maxdepth 1 -name 'libstd-*.rlib' -print -quit)\" && " +
-                    "test -n \"$(find $PREFIX/lib/rustlib/aarch64-linux-android/lib -maxdepth 1 -name 'libproc_macro-*.rlib' -print -quit)\""
+                    "test -n \"$(find $PREFIX/lib/rustlib/aarch64-linux-android/lib -maxdepth 1 -name 'libcore-*.rlib' -print -quit)\" && " +
+                    "test -n \"$(find $PREFIX/lib/rustlib/aarch64-linux-android/lib -maxdepth 1 -name 'liballoc-*.rlib' -print -quit)\""
             ),
             timeoutMs = 60_000,
             onLine = onLine
