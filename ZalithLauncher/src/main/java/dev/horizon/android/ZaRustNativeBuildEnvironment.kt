@@ -125,7 +125,7 @@ object ZaRustNativeBuildEnvironment {
 
         val update = run(
             context,
-            listOf("\$PREFIX/bin/apt-get", "update"),
+            listOf("$PREFIX/bin/apt-get", "update"),
             timeoutMs = 15 * 60 * 1000L,
             onLine = onLine
         )
@@ -139,7 +139,7 @@ object ZaRustNativeBuildEnvironment {
         val install = run(
             context,
             listOf(
-                "\$PREFIX/bin/apt-get", "install", "-y",
+                "$PREFIX/bin/apt-get", "install", "-y",
                 "rust", "clang", "lld", "ndk-sysroot", "git", "python",
                 "nodejs", "cmake", "make", "ninja", "pkg-config",
                 "patch", "rsync", "tar", "unzip", "coreutils", "findutils",
@@ -156,11 +156,11 @@ object ZaRustNativeBuildEnvironment {
         val check = run(
             context,
             listOf(
-                "\$PREFIX/bin/sh", "-lc",
+                "$PREFIX/bin/sh", "-lc",
                 "rustc --version && cargo --version && clang --version && " +
                     "git --version && python --version && node --version && " +
-                    "test -d \$PREFIX/share/ndk-sysroot -o -d \$PREFIX/opt/ndk-sysroot " +
-                    "-o -d \$PREFIX/include/android"
+                    "test -d $PREFIX/share/ndk-sysroot -o -d $PREFIX/opt/ndk-sysroot " +
+                    "-o -d $PREFIX/include/android"
             ),
             timeoutMs = 60_000,
             onLine = onLine
@@ -199,18 +199,17 @@ object ZaRustNativeBuildEnvironment {
             "--bind=/odm", "--bind=/dev", "--bind=/proc", "--bind=/sys",
             "--bind=/proc/self/fd:/dev/fd",
             "--bind=\${paths.work.canonicalPath}:$GUEST_WORK",
-            "--bind=\${context.filesDir.canonicalPath}:/data/data/com.zarust.launcher/files",
-            "\$PREFIX/bin/env", "-i",
+            "$PREFIX/bin/env", "-i",
             "HOME=$HOME",
             "PREFIX=$PREFIX",
-            "PATH=\$PREFIX/bin:/system/bin",
-            "TMPDIR=\$PREFIX/tmp",
+            "PATH=$PREFIX/bin:/system/bin",
+            "TMPDIR=$PREFIX/tmp",
             "LANG=C.UTF-8",
             "TERM=xterm-256color",
             "CARGO_HOME=$HOME/.cargo",
             "RUSTUP_HOME=$HOME/.rustup",
-            "ANDROID_HOME=\$PREFIX/opt/android-sdk",
-            "ANDROID_NDK_HOME=\$PREFIX/opt/android-ndk"
+            "ANDROID_HOME=$PREFIX/opt/android-sdk",
+            "ANDROID_NDK_HOME=$PREFIX/opt/android-ndk"
         )
         args += argv
 
