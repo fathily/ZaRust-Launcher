@@ -153,7 +153,7 @@ object ZaRustNativeBuildEnvironment {
             context,
             listOf(
                 "$PREFIX/bin/apt-get", "install", "-y",
-                "rust", "rust-std-aarch64-linux-android", "clang", "lld", "ndk-sysroot", "git", "python",
+                "rust", "rust-std-aarch64-linux-android", "clang", "lld", "ndk-sysroot", "libandroid-execinfo", "git", "python",
                 "nodejs", "cmake", "make", "ninja", "pkg-config",
                 "patch", "rsync", "tar", "unzip", "coreutils", "findutils",
                 "grep", "sed", "binutils", "openssl", "zlib"
