@@ -67,6 +67,7 @@ echo "$commit" > "$work/source/.horizon-revision"
 python "$patch_script" "$work/source"
 
 manifest="crates/horizon-android/Cargo.toml"
+cp "$work/source/$manifest" "$work/manifest.original"
 lib_line='path = "../horizon-client/src/android_lib.rs"'
 grep -qxF "$lib_line" "$work/source/$manifest" || fail "$manifest no longer matches the expected Android library layout"
 sed -i "s|^path = \"../horizon-client/src/android_lib.rs\"$|path = \"plan-stub.rs\"|" "$work/source/$manifest"
@@ -92,7 +93,7 @@ rsync -r --checksum --delete \
   --exclude "/$manifest" \
   --exclude /crates/horizon-android/plan-stub.rs \
   "$work/stage/" "$build/"
-cp "$work/source/$manifest" "$work/manifest"
+cp "$work/manifest.original" "$work/manifest"
 cmp -s "$work/manifest" "$build/$manifest" || cp "$work/manifest" "$build/$manifest"
 
 # Starling's JavaScript module engine is part of the Rust runtime.
