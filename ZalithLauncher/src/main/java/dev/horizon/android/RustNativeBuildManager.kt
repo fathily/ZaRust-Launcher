@@ -44,13 +44,39 @@ object RustNativeBuildManager {
         val name = runCatching { file.readText().trim() }.getOrNull() ?: return null
         if (!safeName.matches(name) || name.startsWith('.')) return null
         val folder = File(context.filesDir, "native/$name")
-        return name.takeIf {
-            File(folder, LIBRARY_NAME).isFile &&
-                File(folder, "for").let { versionFile ->
-                    runCatching { versionFile.readText().trim() == appVersion(context) }
-                        .getOrDefault(false)
-                }
-        }
+        val library = File(folder, LIBRARY_NAME)
+        val metadataFile = File(folder, "build.json")
+        if (!library.isFile || !metadataFile.isFile) return null
+        val versionMatches = runCatching {
+            File(folder, "for").readText().trim() == appVersion(context)
+        }.getOrDefault(false)
+        if (!versionMatches) return null
+        val metadataMatches = runCatching {
+            val metadata = JSONObject(metadataFile.readText(Charsets.UTF_8))
+            metadata.optString("zaRustVersion") == appVersion(context) &&
+                metadata.optString("abi") == "arm64-v8a" &&
+                metadata.optString("library") == LIBRARY_NAME &&
+                metadata.optLong("size", -1L) == library.length()
+        }.getOrDefault(false)
+        return name.takeIf { metadataMatches }
+    }
+
+    /** Returns the verified app-private library selected for the next Rust launch. */
+    fun currentLibrary(context: Context): File? {
+        val name = currentBuild(context) ?: return null
+        val library = File(context.filesDir, "native/$name/$LIBRARY_NAME")
+        val magic = runCatching {
+            RandomAccessFile(library, "r").use { file ->
+                val ident = ByteArray(5)
+                file.readFully(ident)
+                ident[0] == 0x7f.toByte() &&
+                    ident[1] == 0x45.toByte() &&
+                    ident[2] == 0x4c.toByte() &&
+                    ident[3] == 0x46.toByte() &&
+                    ident[4] == 2.toByte()
+            }
+        }.getOrDefault(false)
+        return library.takeIf { magic }
     }
 
     suspend fun list(context: Context): List<RustNativeBuild> = withContext(Dispatchers.IO) {
