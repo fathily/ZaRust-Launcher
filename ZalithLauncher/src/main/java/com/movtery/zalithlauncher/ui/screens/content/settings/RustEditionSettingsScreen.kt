@@ -203,14 +203,14 @@ fun RustEditionSettingsScreen() {
                         count++
                         require(count <= 5000) { "The archive contains too many files." }
                         require(!entry.name.startsWith("/") && !entry.name.split('/').contains("..")) {
-                            "Arsip berisi path yang tidak aman"
+                            "Archive contains an unsafe file path."
                         }
                         if (entry.size > 0) totalExpanded += entry.size
                         require(totalExpanded <= 128L * 1024L * 1024L) {
                             "The expanded archive is too large."
                         }
                         if (entry.name == "horizon-native.json") {
-                            require(entry.size in 1L..262144L) { "Manifest native mod tidak valid" }
+                            require(entry.size in 1L..262144L) { "The native mod manifest is invalid." }
                             manifestText = archive.getInputStream(entry).bufferedReader(Charsets.UTF_8).use { it.readText() }
                         }
                     }
@@ -219,7 +219,7 @@ fun RustEditionSettingsScreen() {
                     })
                     val modId = manifest.optString("id")
                     require(modId.matches(Regex("[a-z0-9][a-z0-9_-]{0,40}"))) {
-                        "ID mod tidak valid di manifest"
+                        "The mod ID in the manifest is invalid."
                     }
                     require(manifest.optString("version").isNotBlank()) {
                         "The mod version is missing from the manifest."
