@@ -264,9 +264,9 @@ fun RustEditionSettingsScreen() {
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Status Game", style = MaterialTheme.typography.titleMedium)
+                Text("Game Status", style = MaterialTheme.typography.titleMedium)
                 Text(if (gameFilesReady) "Game files are installed." else "Game files were not found. Press Play Rust to set up the official game files.")
-                Text("Akun: " + (account?.let { "${it.username} · ${it.accountType ?: "Local"}" } ?: "Offline"))
+                Text("Account: " + (account?.let { "${it.username} · ${it.accountType ?: "Local"}" } ?: "Offline"))
                 Text("Game folder: ${gameHome.absolutePath}", style = MaterialTheme.typography.bodySmall)
             }
         }
@@ -343,7 +343,7 @@ fun RustEditionSettingsScreen() {
                     }
                     TextButton(onClick = {
                         editorText = readRustConfig(gameHome, selected)
-                        pickerMessage = "Perubahan editor dibatalkan."
+                        pickerMessage = "Editor changes discarded."
                     }) {
                         Text("Reload")
                     }
