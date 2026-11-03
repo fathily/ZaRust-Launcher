@@ -2,6 +2,15 @@ name: Build APK
 
 on:
   workflow_dispatch:
+    inputs:
+      variant:
+        description: Android build variant
+        required: true
+        type: choice
+        options:
+          - Debug
+          - Release
+        default: Release
   workflow_call:
     inputs:
       variant:
@@ -59,10 +68,22 @@ jobs:
           set -o pipefail
           "$sdkmanager_path" --install "ndk;25.2.9519653"
 
+      - name: Install Android SDK platform 37 and pinned NDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_root="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          test -n "$sdk_root" || { echo "Android SDK root is unavailable" >&2; exit 1; }
+          sdkmanager_path="$(find "$sdk_root/cmdline-tools" -type f -name sdkmanager -print -quit)"
+          test -n "$sdkmanager_path" || { echo "sdkmanager was not found" >&2; exit 1; }
+          set +o pipefail
+          yes | "$sdkmanager_path" --licenses >/dev/null
+          set -o pipefail
+          "$sdkmanager_path" --install "platform-tools" "platforms;android-37" "build-tools;35.0.0" "ndk;25.2.9519653"
       - name: Build APK for ${{ matrix.arch }}
         run: |
           chmod +x gradlew
-          ./gradlew ZalithLauncher:assemble${{ inputs.variant }} -Darch=${{ matrix.arch }} -PrustEditionEnabled=${{ matrix.arch == 'all' || matrix.arch == 'arm64' }}
+          ./gradlew ZalithLauncher:assemble${{ inputs.variant || 'Release' }} -Darch=${{ matrix.arch }} -PrustEditionEnabled=${{ matrix.arch == 'all' || matrix.arch == 'arm64' }}
 
       - name: Upload Release APK for ${{ matrix.arch }}
         if: inputs.variant == 'Release'
