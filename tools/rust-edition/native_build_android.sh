@@ -42,7 +42,7 @@ export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$linker"
 export CARGO_TARGET_AARCH64_LINUX_ANDROID_AR="$PREFIX/bin/llvm-ar"
 export CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS="-C link-arg=-Wl,-z,max-page-size=16384 -C link-arg=-landroid-execinfo -C link-arg=-lc++_shared"
 
-tools="$cache/mixins-\${MIXINS_REV:0:12}"
+tools="$cache/mixins-${MIXINS_REV:0:12}"
 if [ ! -x "$tools/bin/horizon-mixins" ]; then
   cargo install --locked --git "$MIXINS_GIT" --rev "$MIXINS_REV" --root "$tools" horizon-mixins-cli
 fi
@@ -110,7 +110,7 @@ fi
 
 # Cargo uses Termux's native Android host compiler and the NDK sysroot package.
 cd "$build"
-export CARGO_BUILD_JOBS="\${CARGO_BUILD_JOBS:-2}"
+export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-2}"
 export CARGO_TARGET_DIR="$build/target"
 export RUSTFLAGS="-C link-arg=-Wl,-z,max-page-size=16384 -C link-arg=-landroid-execinfo -C link-arg=-lc++_shared"
 cargo build --locked --target aarch64-linux-android --profile fast -p horizon-android
