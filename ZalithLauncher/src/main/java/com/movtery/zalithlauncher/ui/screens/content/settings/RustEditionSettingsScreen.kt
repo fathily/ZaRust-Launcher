@@ -407,12 +407,12 @@ fun RustEditionSettingsScreen() {
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Native Mods · HNMOD", style = MaterialTheme.typography.titleMedium)
-                Text("Import a Horizon native source package (.hnmod). ZaRust validates its manifest and stores the package separately from the runtime library.")
+                Text("Import Horizon native source packages (.hnmod). ZaRust validates the manifest and stages them for local native compilation.")
                 Text("Saved packages: ${hnmodImportDir.listFiles()?.count { it.isFile && it.extension.equals("hnmod", true) } ?: 0}")
                 Text(hnmodImportDir.absolutePath, style = MaterialTheme.typography.bodySmall)
                 Button(onClick = { hnmodPicker.launch(arrayOf("*/*")) }) { Text("Import .HNMOD") }
                 Text(
-                    "Imported packages are stored on this device. To compile one in the cloud, its bundle must first be reviewed and committed under the repository's native-mods folder.",
+                    "Imported packages are stored on this device. The Native Builder applies imported packages to the selected Starling base and compiles them locally on this device.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
