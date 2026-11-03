@@ -49,12 +49,13 @@ object ZaRustNativeBuildEnvironment {
         val nativeRunnerInstalled: Boolean,
         val bootstrapInstalled: Boolean,
         val rustInstalled: Boolean,
+        val rustStdInstalled: Boolean,
         val ndkSysrootInstalled: Boolean,
         val freeBytes: Long
     ) {
         val ready: Boolean
             get() = abiSupported && nativeRunnerInstalled && bootstrapInstalled &&
-                rustInstalled && ndkSysrootInstalled
+                rustInstalled && rustStdInstalled && ndkSysrootInstalled
     }
 
     private data class HostPaths(
@@ -92,6 +93,12 @@ object ZaRustNativeBuildEnvironment {
             bootstrapInstalled = File(prefix, "bin/apt-get").isFile,
             rustInstalled = File(prefix, "bin/rustc").isFile &&
                 File(prefix, "bin/cargo").isFile,
+            // Cargo must be able to compile build.rs binaries and proc-macro crates on-device.
+            // Termux ships the matching host rlibs in rust-std-aarch64-linux-android.
+            rustStdInstalled = File(prefix, "lib/rustlib/aarch64-linux-android/lib")
+                .listFiles()?.any { it.name.startsWith("libstd-") && it.name.endsWith(".rlib") } == true &&
+                File(prefix, "lib/rustlib/aarch64-linux-android/lib")
+                    .listFiles()?.any { it.name.startsWith("libproc_macro-") && it.name.endsWith(".rlib") } == true,
             ndkSysrootInstalled = File(prefix, "share/ndk-sysroot").isDirectory ||
                 File(prefix, "opt/ndk-sysroot").isDirectory ||
                 File(prefix, "include/android").isDirectory,
@@ -140,7 +147,7 @@ object ZaRustNativeBuildEnvironment {
             context,
             listOf(
                 "$PREFIX/bin/apt-get", "install", "-y",
-                "rust", "clang", "lld", "ndk-sysroot", "git", "python",
+                "rust", "rust-std-aarch64-linux-android", "clang", "lld", "ndk-sysroot", "git", "python",
                 "nodejs", "cmake", "make", "ninja", "pkg-config",
                 "patch", "rsync", "tar", "unzip", "coreutils", "findutils",
                 "grep", "sed", "binutils", "openssl", "zlib"
@@ -158,9 +165,13 @@ object ZaRustNativeBuildEnvironment {
             listOf(
                 "$PREFIX/bin/sh", "-lc",
                 "rustc --version && cargo --version && clang --version && " +
-                    "git --version && python --version && node --version && " +
+                    "clang++ --version && llvm-ar --version && llvm-strip --version && " +
+                    "git --version && python --version && node --version && npm --version && " +
+                    "rsync --version && readelf --version && " +
                     "test -d $PREFIX/share/ndk-sysroot -o -d $PREFIX/opt/ndk-sysroot " +
-                    "-o -d $PREFIX/include/android"
+                    "-o -d $PREFIX/include/android && " +
+                    "test -n \"$(find $PREFIX/lib/rustlib/aarch64-linux-android/lib -maxdepth 1 -name 'libstd-*.rlib' -print -quit)\" && " +
+                    "test -n \"$(find $PREFIX/lib/rustlib/aarch64-linux-android/lib -maxdepth 1 -name 'libproc_macro-*.rlib' -print -quit)\""
             ),
             timeoutMs = 60_000,
             onLine = onLine
@@ -169,6 +180,56 @@ object ZaRustNativeBuildEnvironment {
             "The local Android build toolchain failed its self-check.\n" +
                 check.output.takeLast(5000)
         }
+        val smokeRoot = File(workDirectory(context), "cargo-host-smoke")
+        if (smokeRoot.exists()) require(smokeRoot.deleteRecursively()) {
+            "Could not clear the previous Rust host compiler test."
+        }
+        val procMacro = File(smokeRoot, "derive/src").apply { mkdirs() }
+        val appSource = File(smokeRoot, "app/src").apply { mkdirs() }
+        File(smokeRoot, "Cargo.toml").writeText(
+            "[workspace]\nmembers = [\"derive\", \"app\"]\nresolver = \"2\"\n",
+            Charsets.UTF_8
+        )
+        File(smokeRoot, "derive/Cargo.toml").writeText(
+            "[package]\nname = \"zarust-smoke-derive\"\nversion = \"0.1.0\"\nedition = \"2021\"\n" +
+                "[lib]\nproc-macro = true\n",
+            Charsets.UTF_8
+        )
+        File(procMacro, "lib.rs").writeText(
+            "extern crate proc_macro;\nuse proc_macro::TokenStream;\n" +
+                "#[proc_macro_derive(ZaRustSmoke)]\npub fn derive_smoke(_: TokenStream) -> TokenStream { " +
+                "\"fn zarust_smoke() {}\".parse().unwrap() }\n",
+            Charsets.UTF_8
+        )
+        File(smokeRoot, "app/Cargo.toml").writeText(
+            "[package]\nname = \"zarust-smoke-app\"\nversion = \"0.1.0\"\nedition = \"2021\"\n" +
+                "[dependencies]\nzarust-smoke-derive = { path = \"../derive\" }\n",
+            Charsets.UTF_8
+        )
+        File(smokeRoot, "app/build.rs").writeText(
+            "fn main() { println!(\"cargo:rerun-if-changed=build.rs\"); }\n",
+            Charsets.UTF_8
+        )
+        File(appSource, "main.rs").writeText(
+            "use zarust_smoke_derive::ZaRustSmoke;\n#[derive(ZaRustSmoke)] struct Smoke;\n" +
+                "fn main() { zarust_smoke(); }\n",
+            Charsets.UTF_8
+        )
+        val smokeResult = run(
+            context,
+            listOf(
+                "$PREFIX/bin/sh", "-lc",
+                "cargo build --offline --manifest-path $GUEST_WORK/cargo-host-smoke/Cargo.toml"
+            ),
+            timeoutMs = 180_000,
+            onLine = onLine
+        )
+        require(smokeResult.success) {
+            "The installed Rust compiler cannot build Cargo build scripts and proc-macros on this device. " +
+                "Update the matching rust and rust-std packages, then retry.\\n" +
+                smokeResult.output.takeLast(5000)
+        }
+        onLine("Rust host compiler passed build-script and proc-macro checks.")
         status(context)
     }
 
