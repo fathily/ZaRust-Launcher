@@ -2,7 +2,7 @@ name: Build ZaRust with Starling Rust Edition
 
 on:
   pull_request:
-    branches: [main, feature/rust-edition-horizon]
+    branches: ['**']
   workflow_dispatch:
     inputs:
       variant:
