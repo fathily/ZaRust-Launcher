@@ -130,7 +130,7 @@ object ZaRustNativeBuildEnvironment {
             onLine = onLine
         )
         require(update.success) {
-            "Could not update the local package index (exit \${update.exitCode}).\n" +
+            "Could not update the local package index (exit ${update.exitCode}).\n" +
                 update.output.takeLast(5000)
         }
 
@@ -149,7 +149,7 @@ object ZaRustNativeBuildEnvironment {
             onLine = onLine
         )
         require(install.success) {
-            "Could not install the local Rust/Android build tools (exit \${install.exitCode}).\n" +
+            "Could not install the local Rust/Android build tools (exit ${install.exitCode}).\n" +
                 install.output.takeLast(8000)
         }
 
@@ -193,12 +193,16 @@ object ZaRustNativeBuildEnvironment {
         args += paths.proot.absolutePath
         args += listOf(
             "--kill-on-exit", "--link2symlink", "--sysvipc", "-L", "-0",
-            "--rootfs=\${paths.rootfs.canonicalPath}",
+            "--rootfs=${paths.rootfs.canonicalPath}",
             "--cwd=$cwd",
-            "--bind=/system", "--bind=/apex", "--bind=/vendor",
-            "--bind=/odm", "--bind=/dev", "--bind=/proc", "--bind=/sys",
+            "--bind=/system", "--bind=/dev", "--bind=/proc", "--bind=/sys",
             "--bind=/proc/self/fd:/dev/fd",
-            "--bind=\${paths.work.canonicalPath}:$GUEST_WORK",
+            "--bind=${paths.work.canonicalPath}:$GUEST_WORK"
+        )
+        for (hostPath in listOf("/apex", "/vendor", "/odm")) {
+            if (File(hostPath).exists()) args += "--bind=$hostPath"
+        }
+        args += listOf(
             "$PREFIX/bin/env", "-i",
             "HOME=$HOME",
             "PREFIX=$PREFIX",
@@ -208,6 +212,8 @@ object ZaRustNativeBuildEnvironment {
             "TERM=xterm-256color",
             "CARGO_HOME=$HOME/.cargo",
             "RUSTUP_HOME=$HOME/.rustup",
+            "CARGO_BUILD_JOBS=2",
+            "NATIVE_CACHE=$GUEST_WORK/cache",
             "ANDROID_HOME=$PREFIX/opt/android-sdk",
             "ANDROID_NDK_HOME=$PREFIX/opt/android-ndk"
         )
@@ -362,7 +368,7 @@ object ZaRustNativeBuildEnvironment {
         val connection = open(url)
         try {
             require(connection.responseCode in 200..299) {
-                "Could not download the Android userspace (HTTP \${connection.responseCode})."
+                "Could not download the Android userspace (HTTP ${connection.responseCode})."
             }
             val length = connection.getHeaderFieldLong("Content-Length", -1L)
             require(length in 1..MAX_BOOTSTRAP_DOWNLOAD) {
@@ -383,7 +389,7 @@ object ZaRustNativeBuildEnvironment {
                         }
                         digest.update(buffer, 0, count)
                         output.write(buffer, 0, count)
-                        onLine("Downloaded \${received / 1024 / 1024} MB of the Android userspace.")
+                        onLine("Downloaded ${received / 1024 / 1024} MB of the Android userspace.")
                     }
                 }
                 output.fd.sync()
