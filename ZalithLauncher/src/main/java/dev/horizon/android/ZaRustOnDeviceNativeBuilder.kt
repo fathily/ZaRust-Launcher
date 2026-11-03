@@ -1,6 +1,7 @@
 package dev.horizon.android
 
 import android.content.Context
+import android.system.Os
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
@@ -238,6 +239,12 @@ object ZaRustOnDeviceNativeBuilder {
                             output.write(buffer, 0, count)
                         }
                         output.fd.sync()
+                    }
+                    // GitHub source ZIPs do not restore Unix executable bits via ZipInputStream.
+                    // Cargo runs build.rs directly, so restore the executable bit for build scripts.
+                    val baseName = relative.substringAfterLast('/')
+                    if (baseName == "build.rs" || baseName.endsWith(".sh") || baseName == "configure") {
+                        Os.chmod(target.absolutePath, 0x1ED)
                     }
                 }
                 zip.closeEntry()
