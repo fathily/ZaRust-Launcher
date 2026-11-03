@@ -152,7 +152,7 @@ fun RustEditionSettingsScreen() {
                 activeNativeBuild = it.name
                 environmentStatus = ZaRustNativeBuildEnvironment.status(context)
                 nativeBuilderMessage =
-                    "Local native build installed: @{it.name}. Restart Rust Edition to load it."
+                    "Local native build installed: ${it.name}. Restart Rust Edition to load it."
             }.onFailure {
                 nativeBuilderMessage = it.message ?: "The on-device native build failed."
                 environmentStatus = ZaRustNativeBuildEnvironment.status(context)
@@ -452,6 +452,7 @@ fun RustEditionSettingsScreen() {
                 Text(
                     "PRoot host runner: ${if (environmentStatus.nativeRunnerInstalled) "Available in this APK" else "Missing from this APK"} · " +
                         "Rust/Cargo: ${if (environmentStatus.rustInstalled) "Installed" else "Not installed"} · " +
+                        "Rust host libraries: ${if (environmentStatus.rustStdInstalled) "Installed" else "Missing"} · " +
                         "Android sysroot: ${if (environmentStatus.ndkSysrootInstalled) "Installed" else "Not installed"}",
                     style = MaterialTheme.typography.bodySmall
                 )
