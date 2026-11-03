@@ -80,12 +80,15 @@ for bundle in "$@"; do
   copy="$work/mods/$id"
   [ ! -e "$copy" ] || fail "duplicate native mod ID: $id"
   cp -a "$bundle/." "$copy/"
-  sed -i -E "s|^horizon_revision = \"[0-9a-f]*\"|horizon_revision = \"$commit\"|" "$copy/horizon-mixin.toml"
+  # Keep the bundle's declared Horizon revision intact. A Starling fork commit is
+  # not interchangeable with the upstream Horizon revision pinned by an HNMOD.
+  revision=$(sed -n 's/^horizon_revision = \"\([0-9a-f]\{40\}\)\"/\1/p' "$copy/horizon-mixin.toml" | head -n1)
+  [[ "$revision" =~ ^[0-9a-f]{40}$ ]] || fail "native mod $id has no valid pinned Horizon revision"
 done
 
 echo "ZaRust Native Builder: engine $commit, native mods: $(ls "$work/mods" | tr '\n' ' ')"
 cargo fetch --locked --manifest-path "$work/source/Cargo.toml"
-"$tools/bin/horizon-mixins" apply --workspace "$work/source" --mods "$work/mods" --out "$work/stage" --trust-native-mods
+"$tools/bin/horizon-mixins" apply --workspace "$work/source" --mods "$work/mods" --out "$work/stage"
 
 mkdir -p "$build"
 rsync -rtp --checksum --delete \
