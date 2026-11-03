@@ -49,8 +49,7 @@ jobs:
         with:
           add-job-summary: "on-failure"
 
-      - name: Install Android NDK for the on-device Rust Builder
-        if: matrix.arch == 'all' || matrix.arch == 'arm64'
+      - name: Install Android NDK required by the Android project
         run: |
           set -euo pipefail
           sdkmanager_path=$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager -print -quit)
