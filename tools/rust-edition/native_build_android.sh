@@ -6,7 +6,7 @@ set -euo pipefail
 MIXINS_GIT="https://github.com/horizon-rust/horizon-mixins"
 MIXINS_REV="0d6b103c70633d8fd9443d8d0acd3aadaacedb06"
 fail() { echo "native_build_android: $*" >&2; exit 1; }
-[ "$#" -ge 5 ] || fail "usage: native_build_android.sh SOURCE OUT APP_VERSION STARLING_COMMIT BUNDLE..."
+[ "$#" -ge 4 ] || fail "usage: native_build_android.sh SOURCE OUT APP_VERSION STARLING_COMMIT [BUNDLE...]"
 source_dir=$(cd "$1" && pwd)
 mkdir -p "$2"
 out=$(cd "$2" && pwd)
