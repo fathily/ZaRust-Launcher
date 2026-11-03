@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Starling.Game" parent="@android:style/Theme.Black.NoTitleBar.Fullscreen">
+        <item name="android:windowSplashScreenBackground">#FF16161C</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+    </style>
+</resources>

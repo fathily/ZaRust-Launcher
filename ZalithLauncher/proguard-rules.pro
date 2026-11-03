@@ -74,3 +74,11 @@
 
 # Libraries
 -keep class com.github.steveice10.opennbt.** { *; }
+# Horizon Rust Edition JNI entry points
+-keep class dev.horizon.android.HorizonActivity { *; }
+-keep class dev.horizon.android.RustEditionBridge { *; }
+-keep class dev.horizon.android.HorizonDocumentsProvider { *; }
+
+# Starling's native Rust engine resolves Android bridge methods by their original JNI names.
+-keep class io.github.juanluci.starling.** { *; }
+-keep class dev.horizon.android.RustEditionBridge { *; }

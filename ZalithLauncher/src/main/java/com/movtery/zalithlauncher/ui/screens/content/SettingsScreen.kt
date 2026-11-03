@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
 import com.movtery.zalithlauncher.R
+import dev.horizon.android.RustEditionBridge
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.ui.base.BaseScreen
 import com.movtery.zalithlauncher.ui.components.WarningCard
@@ -66,6 +67,7 @@ import com.movtery.zalithlauncher.ui.screens.content.settings.GamepadSettingsScr
 import com.movtery.zalithlauncher.ui.screens.content.settings.JavaManageScreen
 import com.movtery.zalithlauncher.ui.screens.content.settings.LauncherSettingsScreen
 import com.movtery.zalithlauncher.ui.screens.content.settings.RendererSettingsScreen
+import com.movtery.zalithlauncher.ui.screens.content.settings.RustEditionSettingsScreen
 import com.movtery.zalithlauncher.ui.screens.content.settings.TurnipDriversScreen
 import com.movtery.zalithlauncher.ui.screens.navigateOnce
 import com.movtery.zalithlauncher.ui.screens.onBack
@@ -122,6 +124,7 @@ private val settingItems = listOf(
     CategoryItem(NormalNavKey.Settings.Control, { CategoryIcon(R.drawable.ic_videogame_asset_outlined, R.string.settings_tab_control) }, R.string.settings_tab_control),
     CategoryItem(NormalNavKey.Settings.Gamepad, { CategoryIcon(R.drawable.ic_sports_esports_outlined, R.string.settings_tab_gamepad) }, R.string.settings_tab_gamepad),
     CategoryItem(NormalNavKey.Settings.Launcher, { CategoryIcon(R.drawable.ic_setting_launcher, R.string.settings_tab_launcher) }, R.string.settings_tab_launcher),
+    CategoryItem(NormalNavKey.Settings.RustEdition, { CategoryIcon(R.drawable.ic_rocket_launch_filled, R.string.settings_tab_rust_edition) }, R.string.settings_tab_rust_edition, division = true),
     CategoryItem(NormalNavKey.Settings.JavaManager, { CategoryIcon(R.drawable.ic_java, R.string.settings_tab_java_manage) }, R.string.settings_tab_java_manage, division = true),
     CategoryItem(NormalNavKey.Settings.ControlManager, { CategoryIcon(R.drawable.ic_videogame_asset_outlined, R.string.settings_tab_control_manage) }, R.string.settings_tab_control_manage),
     CategoryItem(NormalNavKey.Settings.AboutInfo, { CategoryIcon(R.drawable.ic_info_outlined, R.string.settings_tab_info_about) }, R.string.settings_tab_info_about, division = true)
@@ -151,7 +154,8 @@ private fun TabMenu(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(modifier = Modifier.height(12.dp))
-        settingItems.forEach { item ->
+        val rustEditionAvailable = RustEditionBridge.isAvailable()
+        settingItems.filter { rustEditionAvailable || it.key != NormalNavKey.Settings.RustEdition }.forEach { item ->
             if (item.division) {
                 HorizontalDivider(
                     modifier = Modifier
@@ -249,6 +253,9 @@ private fun NavigationUI(
                             toHomePageEditor = toHomePageEditor,
                             submitError = submitError,
                         )
+                    }
+                    entry<NormalNavKey.Settings.RustEdition> {
+                        RustEditionSettingsScreen()
                     }
                     entry<NormalNavKey.Settings.JavaManager> {
                         JavaManageScreen(key, settingsScreenKey, mainScreenKey, eventViewModel, submitError)
