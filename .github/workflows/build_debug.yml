@@ -31,7 +31,7 @@ jobs:
       - name: Build Debug APK for ${{ matrix.arch }}
         run: |
           chmod +x gradlew
-          ./gradlew ZalithLauncher:assembleDebug -Darch=${{ matrix.arch }}
+          ./gradlew ZalithLauncher:assembleDebug -Darch=${{ matrix.arch }} -PrustEditionEnabled=${{ matrix.arch == 'all' || matrix.arch == 'arm64' }}
 
       - name: Upload Debug APK for ${{ matrix.arch }}
         continue-on-error: true
