@@ -82,7 +82,8 @@ jobs:
             }
             unique_ids+=("$id")
           done
-          mods_joined=$(IFS=__; echo "${unique_ids[*]}")
+          mods_joined=$(printf "%s__" "${unique_ids[@]}")
+          mods_joined="${mods_joined%__}"
           build_name="v${APP_VERSION}__${mods_joined}"
           echo "build_name=$build_name" >> "$GITHUB_OUTPUT"
           printf 'Validated ZaRust %s native build: %s\n' "$APP_VERSION" "$build_name"
@@ -147,8 +148,11 @@ jobs:
           set -euo pipefail
           read -r -a mod_ids <<< "$(tr ',' ' ' <<< "$MODS_INPUT" | xargs)"
           bundles=()
+          declare -A seen=()
           for id in "${mod_ids[@]}"; do
             id="${id,,}"
+            [[ -z "${seen[$id]+x}" ]] || continue
+            seen[$id]=1
             bundles+=("zarust-source/tools/rust-edition/native-mods/$id/mixins/$id")
           done
           mkdir -p output
@@ -157,11 +161,11 @@ jobs:
           test -s output/libhorizon_android.so
           test -s output/build.json
           python3 - output/build.json output/libhorizon_android.so <<'PY'
-          import hashlib, json, pathlib, sys
+          import hashlib, json, pathlib, sys, os
           metadata_path, library_path = map(pathlib.Path, sys.argv[1:])
           metadata = json.loads(metadata_path.read_text())
           library = library_path.read_bytes()
-          if metadata.get("version") != "${{ inputs.app_version }}":
+          if metadata.get("version") != os.environ["APP_VERSION"]:
               raise SystemExit("Native library metadata contains the wrong ZaRust version.")
           if metadata.get("abi") != "arm64-v8a":
               raise SystemExit("Native library is not arm64-v8a.")
