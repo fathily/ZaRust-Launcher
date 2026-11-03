@@ -3,6 +3,11 @@ name: Build ZaRust with Starling Rust Edition
 on:
   pull_request:
     branches: ['**']
+  push:
+    branches:
+      - feature/rust-edition-horizon
+      - feature/zarust-native-builder-clean
+      - feature/on-device-native-builder
   workflow_dispatch:
     inputs:
       variant:
