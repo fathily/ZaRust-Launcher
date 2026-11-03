@@ -135,7 +135,14 @@ android {
 
 val buildZaRustProotHost by tasks.registering(Exec::class) {
     val nativeHostScript = rootProject.file("native-host/build.sh")
-    val ndkDirectory = File(android.sdkDirectory, "ndk/$zarustProotNdkVersion")
+    val ndkDirectory = providers.environmentVariable("ANDROID_NDK_HOME").orNull?.let(::File)
+        ?: providers.environmentVariable("ANDROID_SDK_ROOT").orNull?.let {
+            File(it, "ndk/$zarustProotNdkVersion")
+        }
+        ?: providers.environmentVariable("ANDROID_HOME").orNull?.let {
+            File(it, "ndk/$zarustProotNdkVersion")
+        }
+        ?: error("Android NDK path is unavailable. Set ANDROID_NDK_HOME or ANDROID_SDK_ROOT.")
     val jniOutput = rootProject.file("ZalithLauncher/src/main/jniLibs/arm64-v8a")
     inputs.file(nativeHostScript)
     outputs.files(
