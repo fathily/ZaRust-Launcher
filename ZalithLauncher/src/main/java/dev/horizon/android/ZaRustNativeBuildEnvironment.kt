@@ -51,11 +51,12 @@ object ZaRustNativeBuildEnvironment {
         val rustInstalled: Boolean,
         val rustStdInstalled: Boolean,
         val ndkSysrootInstalled: Boolean,
+        val runtimeDependencyInstalled: Boolean,
         val freeBytes: Long
     ) {
         val ready: Boolean
             get() = abiSupported && nativeRunnerInstalled && bootstrapInstalled &&
-                rustInstalled && rustStdInstalled && ndkSysrootInstalled
+                rustInstalled && rustStdInstalled && ndkSysrootInstalled && runtimeDependencyInstalled
     }
 
     private data class HostPaths(
@@ -104,6 +105,9 @@ object ZaRustNativeBuildEnvironment {
             ndkSysrootInstalled = File(prefix, "share/ndk-sysroot").isDirectory ||
                 File(prefix, "opt/ndk-sysroot").isDirectory ||
                 File(prefix, "include/android").isDirectory,
+            runtimeDependencyInstalled = File(
+                context.filesDir, "native-runtime/deps/libandroid-execinfo.so"
+            ).isFile,
             freeBytes = free
         )
     }
@@ -233,7 +237,44 @@ object ZaRustNativeBuildEnvironment {
                 smokeResult.output.takeLast(5000)
         }
         onLine("Rust host compiler passed build-script and proc-macro checks.")
+        installRuntimeDependencies(context, onLine)
         status(context)
+    }
+
+    /**
+     * Rust's Android std package links against this compatibility library.
+     * Keep a private copy so the locally compiled game library can resolve it
+     * without depending on a Termux app or a separate installed package.
+     */
+    private fun installRuntimeDependencies(
+        context: Context,
+        onLine: (String) -> Unit
+    ) {
+        val source = guestFile(context, "$PREFIX/lib/libandroid-execinfo.so")
+        require(source.isFile) {
+            "The Rust runtime dependency libandroid-execinfo.so was not installed."
+        }
+        val destination = File(context.filesDir, "native-runtime/deps/libandroid-execinfo.so")
+        require(destination.parentFile?.mkdirs() != false) {
+            "Could not create the private native runtime dependency folder."
+        }
+        val temporary = File(destination.parentFile, destination.name + ".partial")
+        source.inputStream().use { input ->
+            FileOutputStream(temporary).use { output ->
+                input.copyTo(output, 128 * 1024)
+                output.fd.sync()
+            }
+        }
+        require(temporary.length() > 0L) {
+            "The private Rust runtime dependency is empty."
+        }
+        if (destination.exists()) require(destination.delete()) {
+            "Could not replace the private Rust runtime dependency."
+        }
+        check(temporary.renameTo(destination)) {
+            "Could not activate the private Rust runtime dependency."
+        }
+        onLine("Installed the Rust Android runtime compatibility library inside ZaRust.")
     }
 
     /**
