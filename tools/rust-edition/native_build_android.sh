@@ -88,7 +88,7 @@ cargo fetch --locked --manifest-path "$work/source/Cargo.toml"
 "$tools/bin/horizon-mixins" apply --workspace "$work/source" --mods "$work/mods" --out "$work/stage"
 
 mkdir -p "$build"
-rsync -r --checksum --delete \
+rsync -rtp --checksum --delete \
   --exclude /target/ \
   --exclude "/$manifest" \
   --exclude /crates/horizon-android/plan-stub.rs \
