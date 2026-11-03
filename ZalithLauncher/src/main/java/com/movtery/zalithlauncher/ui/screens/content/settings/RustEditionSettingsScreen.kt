@@ -453,7 +453,8 @@ fun RustEditionSettingsScreen() {
                     "PRoot host runner: ${if (environmentStatus.nativeRunnerInstalled) "Available in this APK" else "Missing from this APK"} · " +
                         "Rust/Cargo: ${if (environmentStatus.rustInstalled) "Installed" else "Not installed"} · " +
                         "Rust host libraries: ${if (environmentStatus.rustStdInstalled) "Installed" else "Missing"} · " +
-                        "Android sysroot: ${if (environmentStatus.ndkSysrootInstalled) "Installed" else "Not installed"}",
+                        "Android sysroot: ${if (environmentStatus.ndkSysrootInstalled) "Installed" else "Not installed"} · " +
+                        "Runtime dependency: ${if (environmentStatus.runtimeDependencyInstalled) "Ready" else "Missing"}",
                     style = MaterialTheme.typography.bodySmall
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
