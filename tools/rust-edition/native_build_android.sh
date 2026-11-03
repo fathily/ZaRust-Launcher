@@ -85,7 +85,7 @@ done
 
 echo "ZaRust Native Builder: engine $commit, native mods: $(ls "$work/mods" | tr '\n' ' ')"
 cargo fetch --locked --manifest-path "$work/source/Cargo.toml"
-"$tools/bin/horizon-mixins" apply --workspace "$work/source" --mods "$work/mods" --out "$work/stage"
+"$tools/bin/horizon-mixins" apply --workspace "$work/source" --mods "$work/mods" --out "$work/stage" --trust-native-mods
 
 mkdir -p "$build"
 rsync -rtp --checksum --delete \
