@@ -1,7 +1,5 @@
 package com.movtery.zalithlauncher.ui.screens.content.settings
 
-import android.content.Intent
-import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -10,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -29,13 +28,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import android.os.Handler
+import android.os.Looper
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.movtery.zalithlauncher.game.account.AccountsManager
 import dev.horizon.android.RustEditionBridge
-import dev.horizon.android.RustNativeBuild
+import dev.horizon.android.ZaRustNativeBuildEnvironment
+import dev.horizon.android.ZaRustOnDeviceNativeBuilder
 import dev.horizon.android.RustNativeBuildManager
 import java.io.File
 import java.io.FileOutputStream
@@ -94,45 +96,69 @@ fun RustEditionSettingsScreen() {
     }
     val coroutineScope = rememberCoroutineScope()
     val nativeAppVersion = remember { RustNativeBuildManager.appVersion(context) }
-    var nativeBuilds by remember { mutableStateOf<List<RustNativeBuild>>(emptyList()) }
-    var nativeBuildLoading by remember { mutableStateOf(false) }
-    var nativeBuildInstalling by remember { mutableStateOf<String?>(null) }
-    var nativeBuildProgress by remember { mutableStateOf(0f) }
-    var nativeBuildMessage by remember { mutableStateOf<String?>(null) }
-    var activeNativeBuild by remember { mutableStateOf(RustNativeBuildManager.currentBuild(context)) }
-
-    val gameHome = RustEditionBridge.gameHome(context)
-    val modsDir = RustEditionBridge.modsDirectory(context)
-    val shadersDir = RustEditionBridge.shaderPacksDirectory(context)
-    val resourcePacksDir = File(gameHome, "resourcepacks")
-    val nativeDir = RustEditionBridge.nativeModsDirectory(context)
-    val hnmodImportDir = File(context.filesDir, "rust-edition/imported-hnmod")
-    val selected = rustConfigDocuments[selectedDocument]
-
-    LaunchedEffect(selectedDocument, gameHome.absolutePath) {
-        editorText = readRustConfig(gameHome, selected)
+    var starlingBase by remember {
+        mutableStateOf(ZaRustOnDeviceNativeBuilder.DEFAULT_STARLING_COMMIT)
     }
+    var environmentStatus by remember {
+        mutableStateOf(ZaRustNativeBuildEnvironment.status(context))
+    }
+    var nativeBuilderPreparing by remember { mutableStateOf(false) }
+    var nativeBuildRunning by remember { mutableStateOf(false) }
+    var nativeBuilderMessage by remember { mutableStateOf<String?>(null) }
+    var nativeBuilderLog by remember { mutableStateOf<List<String>>(emptyList()) }
+    var activeNativeBuild by remember {
+        mutableStateOf(RustNativeBuildManager.currentBuild(context))
+    }
+    val mainHandler = remember { Handler(Looper.getMainLooper()) }
 
-    fun refreshNativeBuilds() {
-        coroutineScope.launch {
-            nativeBuildLoading = true
-            val result = runCatching { RustNativeBuildManager.list(context) }
-            result.onSuccess {
-                nativeBuilds = it
-                nativeBuildMessage = if (it.isEmpty()) {
-                    "No native builds have been published for ZaRust $nativeAppVersion yet."
-                } else {
-                    "Found ${it.size} build(s) compatible with ZaRust $nativeAppVersion."
-                }
-            }.onFailure {
-                nativeBuildMessage = it.message ?: "Could not load the native build list."
-            }
-            nativeBuildLoading = false
+    fun appendNativeLog(line: String) {
+        mainHandler.post {
+            nativeBuilderLog = (nativeBuilderLog + line).takeLast(80)
         }
     }
 
-    LaunchedEffect(nativeAppVersion) {
-        refreshNativeBuilds()
+    fun prepareNativeBuilder() {
+        coroutineScope.launch {
+            nativeBuilderPreparing = true
+            nativeBuilderMessage = null
+            nativeBuilderLog = emptyList()
+            val result = runCatching {
+                ZaRustNativeBuildEnvironment.prepare(context, ::appendNativeLog)
+            }
+            result.onSuccess {
+                environmentStatus = it
+                nativeBuilderMessage = if (it.ready) {
+                    "The on-device ARM64 build environment is ready."
+                } else {
+                    "The build environment is installed but did not pass every readiness check."
+                }
+            }.onFailure {
+                environmentStatus = ZaRustNativeBuildEnvironment.status(context)
+                nativeBuilderMessage = it.message ?: "Could not prepare the on-device build environment."
+            }
+            nativeBuilderPreparing = false
+        }
+    }
+
+    fun buildNativeOnDevice() {
+        coroutineScope.launch {
+            nativeBuildRunning = true
+            nativeBuilderMessage = null
+            nativeBuilderLog = emptyList()
+            val result = runCatching {
+                ZaRustOnDeviceNativeBuilder.build(context, starlingBase, ::appendNativeLog)
+            }
+            result.onSuccess {
+                activeNativeBuild = it.name
+                environmentStatus = ZaRustNativeBuildEnvironment.status(context)
+                nativeBuilderMessage =
+                    "Local native build installed: @{it.name}. Restart Rust Edition to load it."
+            }.onFailure {
+                nativeBuilderMessage = it.message ?: "The on-device native build failed."
+                environmentStatus = ZaRustNativeBuildEnvironment.status(context)
+            }
+            nativeBuildRunning = false
+        }
     }
 
     fun copySelected(uri: android.net.Uri?, destination: File, accepted: Set<String>) {
@@ -395,92 +421,100 @@ fun RustEditionSettingsScreen() {
         }
 
         Card(modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Native Build Manager · Android ARM64", style = MaterialTheme.typography.titleMedium)
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("ZaRust Native Builder", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "This workflow compiles only the ARM64 native library (.so). It does not build or replace the ZaRust APK. The output is published to the native-builds release and can be installed from this screen.",
+                    "Compile the Horizon Rust engine on this device. No Termux app, separate launcher, GitHub Actions, or remote build worker is used. The private Android toolchain and PRoot runner are managed by ZaRust.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text("ZaRust version: $nativeAppVersion")
+                OutlinedTextField(
+                    value = starlingBase,
+                    onValueChange = { starlingBase = it.trim() },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text("Starling base version / commit") },
+                    supportingText = {
+                        Text("Default pinned base: ${ZaRustOnDeviceNativeBuilder.DEFAULT_STARLING_COMMIT}. You can enter a branch, tag, or 40-character commit SHA.")
+                    }
+                )
+                Text(
+                    "Each build starts from a clean Starling source snapshot. Imported HNMOD bundles are applied to that base before Cargo compiles the ARM64 library.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text("Imported HNMOD packages: ${ZaRustOnDeviceNativeBuilder.importedHnmods(context).size}")
+                Text(
+                    "Build environment: ${if (environmentStatus.ready) "Ready" else "Not ready"} · " +
+                        "Free storage: ${environmentStatus.freeBytes / (1024L * 1024L * 1024L)} GB",
                     style = MaterialTheme.typography.bodySmall
                 )
                 Text(
-                    "Build steps: open the workflow, choose Run workflow, keep the app version at $nativeAppVersion, and enter an approved mod ID (the default is wrench). After the workflow succeeds, return here, tap Refresh Builds, then Download & Activate.",
+                    "PRoot host runner: ${if (environmentStatus.nativeRunnerInstalled) "Available in this APK" else "Missing from this APK"} · " +
+                        "Rust/Cargo: ${if (environmentStatus.rustInstalled) "Installed" else "Not installed"} · " +
+                        "Android sysroot: ${if (environmentStatus.ndkSysrootInstalled) "Installed" else "Not installed"}",
                     style = MaterialTheme.typography.bodySmall
-                )
-                Text("Target version: $nativeAppVersion")
-                Text(
-                    activeNativeBuild?.let { "Custom native build active for the next launch: $it" }
-                        ?: "No custom native build is active. The built-in Rust runtime bundled in the ZaRust APK will be used."
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { refreshNativeBuilds() }, enabled = !nativeBuildLoading) {
-                        Text(if (nativeBuildLoading) "Loading..." else "Refresh Builds")
+                    Button(
+                        onClick = { prepareNativeBuilder() },
+                        enabled = !nativeBuilderPreparing && !nativeBuildRunning &&
+                            environmentStatus.nativeRunnerInstalled
+                    ) {
+                        Text(if (nativeBuilderPreparing) "Preparing…" else "Prepare Build Tools")
                     }
-                    TextButton(onClick = {
-                        val uri = Uri.parse("https://github.com/fathily/ZaRust-Launcher/actions/workflows/rust-edition-native-mods.yml")
-                        context.startActivity(Intent(Intent.ACTION_VIEW, uri))
-                    }) {
-                        Text("Open Native Build Workflow")
+                    Button(
+                        onClick = { buildNativeOnDevice() },
+                        enabled = !nativeBuilderPreparing && !nativeBuildRunning &&
+                            environmentStatus.nativeRunnerInstalled &&
+                            starlingBase.isNotBlank()
+                    ) {
+                        Text(if (nativeBuildRunning) "Building…" else "Build Native Here")
                     }
                 }
-                if (nativeBuildLoading) {
+                if (nativeBuilderPreparing || nativeBuildRunning) {
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
-                nativeBuilds.forEach { build ->
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(build.label.ifBlank { build.name }, style = MaterialTheme.typography.titleSmall)
-                            Text(build.name, style = MaterialTheme.typography.bodySmall)
-                            Button(
-                                enabled = nativeBuildInstalling == null &&
-                                    activeNativeBuild != build.name,
-                                onClick = {
-                                    coroutineScope.launch {
-                                        nativeBuildInstalling = build.name
-                                        nativeBuildProgress = 0f
-                                        nativeBuildMessage = "Downloading and verifying ${build.label}..."
-                                        val result = runCatching {
-                                            RustNativeBuildManager.install(context, build) { done, total ->
-                                                coroutineScope.launch {
-                                                    nativeBuildProgress =
-                                                        if (total > 0) (done.toFloat() / total).coerceIn(0f, 1f)
-                                                        else 0f
-                                                }
-                                            }
-                                        }
-                                        result.onSuccess {
-                                            activeNativeBuild = it
-                                            nativeBuildMessage = "Native build installed. Restart Rust Edition to use it."
-                                        }.onFailure {
-                                            nativeBuildMessage = it.message ?: "Could not install the native build."
-                                        }
-                                        nativeBuildInstalling = null
-                                    }
-                                }
-                            ) {
-                                Text(if (nativeBuildInstalling == build.name) "Downloading..." else "Download & Activate")
-                            }
-                            if (nativeBuildInstalling == build.name) {
-                                LinearProgressIndicator(
-                                    progress = nativeBuildProgress,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
-                        }
-                    }
-                }
+                Text(
+                    activeNativeBuild?.let { "Custom native runtime selected: $it" }
+                        ?: "Runtime selection: Built-in Rust library bundled in this ZaRust APK.",
+                    style = MaterialTheme.typography.bodySmall
+                )
                 if (activeNativeBuild != null) {
-                    TextButton(onClick = {
-                        RustNativeBuildManager.disable(context)
-                        activeNativeBuild = null
-                        nativeBuildMessage = "Custom native build disabled. Rust Edition will use the built-in runtime bundled in the ZaRust APK on the next launch."
-                    }) {
+                    TextButton(
+                        onClick = {
+                            RustNativeBuildManager.disable(context)
+                            activeNativeBuild = null
+                            nativeBuilderMessage =
+                                "Custom native runtime disabled. The built-in Rust library will be used on the next launch."
+                        },
+                        enabled = !nativeBuildRunning
+                    ) {
                         Text("Use Built-in Runtime")
                     }
                 }
-                nativeBuildMessage?.let {
-                    Text(it, style = MaterialTheme.typography.bodySmall)
+                nativeBuilderMessage?.let {
+                    Text(
+                        it,
+                        color = if (it.startsWith("Local native build installed") ||
+                            it.startsWith("The on-device ARM64 build environment is ready.")
+                        ) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                if (nativeBuilderLog.isNotEmpty()) {
+                    Text("Build Log", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        nativeBuilderLog.takeLast(16).joinToString("\n"),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 220.dp)
+                            .verticalScroll(rememberScrollState()),
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
                 Text(
-                    "Security: native libraries are executable code with full game access. Only activate builds you trust. Downloaded files are verified with SHA-256 before use.",
+                    "Storage note: the first setup downloads the ARM64 Rust/Cargo and Android sysroot packages. A full compile needs several GB of free internal storage and can take a long time on mobile hardware. Native HNMOD source is executable code; only build packages you trust.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error
                 )
