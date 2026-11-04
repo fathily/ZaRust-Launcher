@@ -46,8 +46,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          version="${{ steps.version.outputs.version }}"
-          test -n "$version" || { echo "Could not read launcher_version_name." >&2; exit 1; }
+          version="$(awk -F= '$1 == "launcher_version_name" { print $2; exit }' source/ZalithLauncher/gradle.properties)"
+          test -n "$version" || { echo "Could not read launcher_version_name from source/ZalithLauncher/gradle.properties." >&2; exit 1; }
+          echo "Detected launcher version: $version"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Download combined Horizon Rust Edition APK
