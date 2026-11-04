@@ -1,5 +1,5 @@
 name: Build ZaRust with Starling Rust Edition
-# [publish-beta] Retry release after fixing exact matching Build CI lookup.
+# [publish-beta] Validate the updated release publisher and direct APK artifact downloads.
 
 on:
   pull_request:
