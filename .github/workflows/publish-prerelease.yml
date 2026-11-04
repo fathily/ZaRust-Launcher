@@ -52,17 +52,18 @@ jobs:
 
           download_artifact() {
             local run_id="$1"
-            local asset_name="$2"
-            local destination="$3"
+            local artifact_name="$2"
+            local expected_file="$3"
+            local destination="$4"
             local metadata artifact_id api_url headers location status archive
             mkdir -p "$(dirname "$destination")"
 
             metadata="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts?per_page=100")"
-            artifact_id="$(jq -r --arg name "$asset_name" \
+            artifact_id="$(jq -r --arg name "$artifact_name" \
               '[.artifacts[] | select(.name == $name and .expired == false)] | sort_by(.created_at) | last | .id // empty' \
               <<< "$metadata")"
             if [[ -z "$artifact_id" ]]; then
-              echo "Artifact '$asset_name' was not found in workflow run $run_id." >&2
+              echo "Artifact '$artifact_name' was not found in workflow run $run_id." >&2
               jq -r '.artifacts[] | " - \(.name) (expired=\(.expired))"' <<< "$metadata" >&2
               return 1
             fi
@@ -73,7 +74,7 @@ jobs:
             local attempt
             for attempt in 1 2 3 4 5 6 7 8; do
               rm -f "$archive" "$headers"
-              echo "Downloading '$asset_name' (artifact $artifact_id), attempt $attempt/8..."
+              echo "Downloading '$artifact_name' (artifact $artifact_id), attempt $attempt/8..."
               if ! curl --silent --show-error --dump-header "$headers" --output /dev/null \
                 --header "Authorization: Bearer $GH_TOKEN" \
                 --header "Accept: application/vnd.github+json" \
@@ -84,8 +85,8 @@ jobs:
                 continue
               fi
 
-              status="$(awk '/^HTTP\// { code=$2 } END { print code }' "$headers")"
-              location="$(awk 'tolower($1) == "location:" { $1=""; sub(/^ /, ""); sub(/\r$/, ""); print }' "$headers" | tail -n 1)"
+              status="$(awk '/^HTTP\\// { code=$2 } END { print code }' "$headers")"
+              location="$(awk 'tolower($1) == "location:" { $1=""; sub(/^ /, ""); sub(/\\r$/, ""); print }' "$headers" | tail -n 1)"
               if [[ "$status" != "302" && "$status" != "303" ]] || [[ -z "$location" ]]; then
                 echo "GitHub artifact API returned HTTP $status without a download redirect." >&2
                 cat "$headers" >&2
@@ -98,16 +99,16 @@ jobs:
               if curl --fail --silent --show-error --location \
                 --retry 2 --retry-all-errors --retry-delay 4 --max-time 900 \
                 "$location" --output "$archive" && unzip -tq "$archive"; then
-                mapfile -t apk_entries < <(unzip -Z1 "$archive" | grep -E '\.apk$' || true)
-                if [[ "${#apk_entries[@]}" -eq 1 ]] && [[ "$(basename "${apk_entries[0]}")" == "$asset_name" ]]; then
+                mapfile -t apk_entries < <(unzip -Z1 "$archive" | grep -E '\\.apk$' || true)
+                if [[ "${#apk_entries[@]}" -eq 1 ]] && [[ "$(basename "${apk_entries[0]}")" == "$expected_file" ]]; then
                   unzip -p "$archive" "${apk_entries[0]}" > "$destination"
                   if [[ -s "$destination" ]] && unzip -tq "$destination"; then
-                    echo "Verified $asset_name ($(stat -c '%s' "$destination") bytes)."
+                    echo "Verified $expected_file ($(stat -c '%s' "$destination") bytes)."
                     rm -f "$archive" "$headers"
                     return 0
                   fi
                 fi
-                echo "Downloaded artifact archive did not contain exactly one valid '$asset_name'." >&2
+                echo "Downloaded artifact archive did not contain exactly one valid '$expected_file'." >&2
               else
                 echo "Artifact download or archive integrity check failed." >&2
               fi
@@ -115,7 +116,7 @@ jobs:
             done
 
             rm -f "$archive" "$headers" "$destination"
-            echo "Failed to download '$asset_name' after 8 attempts." >&2
+            echo "Failed to download '$artifact_name' after 8 attempts." >&2
             return 1
           }
 
@@ -123,20 +124,25 @@ jobs:
 
           download_artifact "$RUST_RUN_ID" \
             "ZaRust-Starling-Release-arm64-v8a" \
+            "ZaRust-Starling-Release-arm64-v8a.apk" \
             "release-assets/rust/ZaRust-Starling-Release-arm64-v8a.apk"
 
           download_artifact "$CI_RUN_ID" "ZaRust-2.4.11-arm64-v8a.apk" \
+            "ZaRust-2.4.11-arm64-v8a.apk" \
             "release-assets/launcher/collected/ZaRust-2.4.11-arm64-v8a.apk"
           download_artifact "$CI_RUN_ID" "ZaRust-2.4.11-armeabi-v7a.apk" \
+            "ZaRust-2.4.11-armeabi-v7a.apk" \
             "release-assets/launcher/collected/ZaRust-2.4.11-armeabi-v7a.apk"
           download_artifact "$CI_RUN_ID" "ZaRust-2.4.11-x86.apk" \
+            "ZaRust-2.4.11-x86.apk" \
             "release-assets/launcher/collected/ZaRust-2.4.11-x86.apk"
           download_artifact "$CI_RUN_ID" "ZaRust-2.4.11-x86_64.apk" \
+            "ZaRust-2.4.11-x86_64.apk" \
             "release-assets/launcher/collected/ZaRust-2.4.11-x86_64.apk"
           download_artifact "$CI_RUN_ID" "ZaRust-2.4.11.apk" \
+            "ZaRust-2.4.11.apk" \
             "release-assets/launcher/collected/ZaRust-2.4.11.apk"
 
-          launcher_count="$(find release-assets/launcher/collected -maxdepth 1 -type f -name '*.apk' | wc -l)"
           test "$launcher_count" -eq 5 || {
             echo "Expected exactly five launcher APKs, found $launcher_count." >&2
             exit 1
