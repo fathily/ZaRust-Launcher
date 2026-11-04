@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   publish:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'workflow_dispatch' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' && (github.event.workflow_run.event == 'workflow_dispatch' || (github.event.workflow_run.event == 'push' && contains(github.event.workflow_run.head_commit.message, '[publish-beta]'))) }}
     runs-on: ubuntu-latest
     steps:
       - name: Check out the exact tested source
