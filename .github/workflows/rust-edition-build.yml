@@ -142,6 +142,8 @@ jobs:
               "lib/arm64-v8a/libstarling_java.so",
               "lib/arm64-v8a/libstarling_javac.so",
               "lib/arm64-v8a/libc++_shared.so",
+              "lib/arm64-v8a/libproot.so",
+              "lib/arm64-v8a/libproot-loader.so",
               "assets/prepare-kit.zip",
               "assets/lowbudget.zip",
               "assets/StarlingVisuals.zip",
