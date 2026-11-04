@@ -145,6 +145,7 @@ jobs:
               "assets/prepare-kit.zip",
               "assets/lowbudget.zip",
               "assets/StarlingVisuals.zip",
+              "assets/rust-builder/bootstrap-aarch64.zip",
           ]
           with zipfile.ZipFile(apk) as archive:
               names = set(archive.namelist())

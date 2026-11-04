@@ -88,6 +88,11 @@ private val rustConfigDocuments = listOf(
 @Composable
 fun RustEditionSettingsScreen() {
     val context = LocalContext.current
+    val bundledBootstrapAvailable = remember {
+        runCatching {
+            context.assets.open("rust-builder/bootstrap-aarch64.zip").use { it.read() >= 0 }
+        }.getOrDefault(false)
+    }
     val gameHome = RustEditionBridge.gameHome(context)
     val modsDir = RustEditionBridge.modsDirectory(context).apply { mkdirs() }
     val shadersDir = RustEditionBridge.shaderPacksDirectory(context).apply { mkdirs() }
@@ -462,11 +467,16 @@ fun RustEditionSettingsScreen() {
                     style = MaterialTheme.typography.bodySmall
                 )
                 Text(
-                    "PRoot host runner: ${if (environmentStatus.nativeRunnerInstalled) "Available in this APK" else "Missing from this APK"} · " +
-                        "Rust/Cargo: ${if (environmentStatus.rustInstalled) "Installed" else "Not installed"} · " +
-                        "Rust host libraries: ${if (environmentStatus.rustStdInstalled) "Installed" else "Missing"} · " +
-                        "Android sysroot: ${if (environmentStatus.ndkSysrootInstalled) "Installed" else "Not installed"}",
+                    "PRoot host runner: ${if (environmentStatus.nativeRunnerInstalled) "Bundled in this APK" else "Missing from this APK"} · " +
+                        "Rust/Cargo: ${if (environmentStatus.rustInstalled) "Installed" else "Setup required"} · " +
+                        "Rust host libraries: ${if (environmentStatus.rustStdInstalled) "Installed" else "Setup required"} · " +
+                        "Android sysroot: ${if (environmentStatus.ndkSysrootInstalled) "Installed" else "Setup required"}",
                     style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    "Android bootstrap archive: ${if (bundledBootstrapAvailable) "Bundled in this APK and SHA-256 verified during setup" else "Missing from this APK"}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (bundledBootstrapAvailable) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
