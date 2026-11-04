@@ -548,8 +548,19 @@ replace_once(
             "ZaRust: found Zalith layout source at {}",
             zarust_touch_layout.display()
         ));
+        // Older ZaRust builds wrote the generated layout straight to touch-layout.json.
+        // Do not mistake that legacy file for the player's original Starling layout.
+        let legacy_zalith_layout = target.is_file()
+            && std::fs::read_to_string(&target)
+                .ok()
+                .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+                .and_then(|value| {
+                    value.get("zarustSource")
+                        .and_then(|source| source.as_str().map(str::to_owned))
+                })
+                .as_deref() == Some("zalith-control-manager");
         // Preserve a native Starling layout before the Zalith-generated layout replaces it.
-        let backup_ready = if target.is_file() && !zarust_marker.exists() {
+        let backup_ready = if target.is_file() && !zarust_marker.exists() && !legacy_zalith_layout {
             let _ = std::fs::remove_file(&starling_backup);
             match std::fs::copy(&target, &starling_backup) {
                 Ok(_) => true,
@@ -586,8 +597,9 @@ replace_once(
                 }
             }
         }
-    } else if zarust_marker.is_file() {
+    } else if zarust_marker.is_file() || legacy_zalith_layout {
         // Returning to Starling mode restores its previous custom layout, or its built-in default.
+        // The second condition migrates devices updated from the older direct-write adapter.
         let restored = if starling_backup.is_file() {
             std::fs::copy(&starling_backup, &temporary)
                 .and_then(|_| std::fs::rename(&temporary, &target))
