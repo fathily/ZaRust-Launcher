@@ -99,7 +99,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release-assets/launcher/collected
-          find release-assets/launcher -mindepth 2 -type f -name '*.apk' -exec cp -f {} release-assets/launcher/collected/ \;
+          find release-assets/launcher -mindepth 2 -type f -name '*.apk' -exec mv -f {} release-assets/launcher/collected/ \;
           count="$(find release-assets/launcher/collected -maxdepth 1 -type f -name '*.apk' | wc -l)"
           test "$count" -eq 5 || { echo "Expected 5 launcher APKs, found $count." >&2; exit 1; }
 
