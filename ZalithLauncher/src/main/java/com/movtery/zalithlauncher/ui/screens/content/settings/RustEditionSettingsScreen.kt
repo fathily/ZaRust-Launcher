@@ -88,10 +88,17 @@ private val rustConfigDocuments = listOf(
 @Composable
 fun RustEditionSettingsScreen() {
     val context = LocalContext.current
+    val gameHome = RustEditionBridge.gameHome(context)
+    val modsDir = RustEditionBridge.modsDirectory(context).apply { mkdirs() }
+    val shadersDir = RustEditionBridge.shaderPacksDirectory(context).apply { mkdirs() }
+    val resourcePacksDir = File(gameHome, "resourcepacks").apply { mkdirs() }
+    val hnmodImportDir = File(context.filesDir, "rust-edition/imported-hnmod").apply { mkdirs() }
+    val nativeDir = File(context.filesDir, "native").apply { mkdirs() }
     val account by AccountsManager.currentAccountFlow.collectAsStateWithLifecycle()
     var inputMode by remember { mutableStateOf(RustEditionBridge.getInputMode(context)) }
     var pickerMessage by remember { mutableStateOf<String?>(null) }
     var selectedDocument by remember { mutableIntStateOf(0) }
+    val selected = rustConfigDocuments[selectedDocument]
     var editorText by remember {
         mutableStateOf(readRustConfig(RustEditionBridge.gameHome(context), rustConfigDocuments[0]))
     }
@@ -314,7 +321,7 @@ fun RustEditionSettingsScreen() {
                         selected = inputMode == "zalith",
                         onClick = {
                             inputMode = "zalith"
-                            RustEditionBridge.setInputMode(context, inputMode)
+                            RustEditionBridge.setInputMode(context, "zalith")
                         },
                         label = { Text("ZaRust Controls") }
                     )
@@ -322,7 +329,7 @@ fun RustEditionSettingsScreen() {
                         selected = inputMode == "starling",
                         onClick = {
                             inputMode = "starling"
-                            RustEditionBridge.setInputMode(context, inputMode)
+                            RustEditionBridge.setInputMode(context, "starling")
                         },
                         label = { Text("Starling Controls") }
                     )

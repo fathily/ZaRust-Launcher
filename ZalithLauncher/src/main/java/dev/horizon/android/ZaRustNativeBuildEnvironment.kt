@@ -85,7 +85,7 @@ object ZaRustNativeBuildEnvironment {
     fun status(context: Context): Status {
         val prefix = guestFile(context, PREFIX)
         val nativeDir = File(context.applicationInfo.nativeLibraryDir)
-        val free = runCatching { StatFs(context.filesDir).availableBytes }.getOrDefault(0L)
+        val free = runCatching { StatFs(context.filesDir.absolutePath).availableBytes }.getOrDefault(0L)
         return Status(
             abiSupported = android.os.Build.SUPPORTED_ABIS.any { it == "arm64-v8a" },
             nativeRunnerInstalled = File(nativeDir, "libproot.so").canExecute() &&
@@ -121,7 +121,7 @@ object ZaRustNativeBuildEnvironment {
         }
         requireRunner(context)
 
-        val free = StatFs(context.filesDir).availableBytes
+        val free = StatFs(context.filesDir.absolutePath).availableBytes
         require(free >= MIN_FREE_SPACE) {
             "At least 5 GB of free internal storage is required for the Android build environment."
         }
