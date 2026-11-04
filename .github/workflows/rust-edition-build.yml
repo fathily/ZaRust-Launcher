@@ -17,7 +17,7 @@ on:
         options:
           - Debug
           - Release
-        default: Debug
+        default: Release
 
 permissions:
   contents: read
@@ -72,12 +72,17 @@ jobs:
           set +o pipefail
           yes | "$sdkmanager_path" --licenses >/dev/null
           set -o pipefail
-          "$sdkmanager_path" \
+          "$sdkmanager_path" --channel=3 \
             "platform-tools" \
-            "platforms;android-37" \
+            "platforms;android-37.0" \
             "build-tools;35.0.0" \
             "ndk;28.2.13676358" \
             "ndk;25.2.9519653"
+          platform_dir="$ANDROID_HOME/platforms/android-37.0"
+          test -f "$platform_dir/android.jar" || { echo "Android SDK Platform 37.0 was not installed" >&2; exit 1; }
+          compat_dir="$ANDROID_HOME/platforms/android-37"
+          if [[ ! -e "$compat_dir" ]]; then ln -s "android-37.0" "$compat_dir"; fi
+          test -f "$compat_dir/android.jar" || { echo "Android SDK Platform 37 compatibility path is unavailable" >&2; exit 1; }
           echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> "$GITHUB_ENV"
 
