@@ -1,0 +1,142 @@
+name: Publish ZaRust Experimental Pre-release
+
+on:
+  workflow_run:
+    workflows:
+      - Build ZaRust with Starling Rust Edition
+    types:
+      - completed
+    branches:
+      - feature/zarust-native-builder-clean
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the exact tested source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          path: source
+
+      - name: Download the combined Rust Edition APK
+        uses: actions/download-artifact@v4
+        with:
+          name: ZaRust-Starling-Release-arm64-v8a
+          path: release-assets/rust
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Find the matching successful launcher ABI build
+        id: ci
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          ci_run_id="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$SOURCE_SHA&per_page=100" \
+            --jq '[.workflow_runs[] | select(.name == "Build CI" and .conclusion == "success" and .head_sha == env.SOURCE_SHA)] | sort_by(.run_number) | last | .id // empty')"
+          test -n "$ci_run_id" || {
+            echo "No successful Build CI run exists for source commit $SOURCE_SHA." >&2
+            exit 1
+          }
+          echo "run_id=$ci_run_id" >> "$GITHUB_OUTPUT"
+          echo "Using matching Build CI run: $ci_run_id"
+
+      - name: Download standard launcher APKs from the matching CI run
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets/launcher
+          merge-multiple: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.ci.outputs.run_id }}
+
+      - name: Verify APK files and prepare release notes
+        id: prepare
+        env:
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+          RUST_RUN_NUMBER: ${{ github.event.workflow_run.run_number }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          rust_apk="release-assets/rust/ZaRust-Starling-Release-arm64-v8a.apk"
+          test -s "$rust_apk" || {
+            echo "The Rust Edition Release APK was not produced. Run the Starling workflow with variant Release." >&2
+            exit 1
+          }
+
+          mapfile -t launcher_apks < <(find release-assets/launcher -type f -name '*.apk' -print | sort)
+          test "${#launcher_apks[@]}" -ge 5 || {
+            printf 'Expected the five launcher ABI APKs, found %s.\n' "${#launcher_apks[@]}" >&2
+            exit 1
+          }
+
+          version="$(awk -F= '$1 == "launcher_version_name" { print $2; exit }' source/ZalithLauncher/gradle.properties)"
+          test -n "$version" || { echo "Could not read launcher_version_name." >&2; exit 1; }
+
+          mkdir -p release-assets/final
+          cp "${launcher_apks[@]}" release-assets/final/
+          cp "$rust_apk" release-assets/final/
+          (
+            cd release-assets/final
+            sha256sum *.apk > SHA256SUMS.txt
+          )
+
+          tag="v${version}-beta.${RUST_RUN_NUMBER}"
+          title="ZaRust Launcher ${version} — Experimental Beta ${RUST_RUN_NUMBER}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "title=$title" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+          cat > release-assets/final/RELEASE_NOTES.md <<'NOTES'
+          ## ZaRust Launcher — Experimental Pre-release
+
+          This is an **early-access test build**, not a stable release. It combines the Zalith Launcher 2+ foundation with Horizon Rust Edition through the Starling Android port in one ZaRust application.
+
+          ### Included APKs
+          - Standard launcher APKs for the available Android ABIs.
+          - A separate combined **Starling / Horizon Rust Edition ARM64** APK.
+
+          Choose the APK that matches your device and read the asset filename carefully. The Rust Edition build is currently ARM64-only.
+
+          ### Known issues — please read
+          - Zalith/Starling touch-control switching and layout migration are still under active testing; the selected layout may not apply correctly in every situation.
+          - Keyboard and gamepad mappings are not fully verified across devices and game screens.
+          - The on-device Native Builder is experimental. It requires an ARM64 Android device; Rust/Cargo and the Android sysroot are prepared inside ZaRust's private storage, and a full native build needs several gigabytes of free internal storage.
+          - Native .hnmod package compatibility depends on the selected engine revision. Not every package is guaranteed to build or run.
+          - Shader packs, Java mods, and Rust-native mods use different formats and are not automatically interchangeable.
+          - Some Rust Edition settings, translations, account hand-off paths, and device-specific behaviors may still be incomplete or inconsistent.
+
+          Please report reproducible problems with your device model, Android version, ABI, APK filename, steps to reproduce, and relevant logs. Do not treat this pre-release as bug-free.
+
+          ### Credits
+          - ZaRust integration and launcher modifications: **AlfaaBEJIRR**.
+          - Java launcher foundation: **Zalith Launcher 2** and contributors.
+          - Android Rust engine port: **JuanLuci / Starling**.
+          - Rust engine: **Horizon Rust contributors**.
+          - Horizon Android reference: **Vasysik**.
+
+          ZaRust is an unofficial community project and is not affiliated with Mojang, Microsoft, Zalith Launcher, Horizon, or Starling.
+          NOTES
+
+      - name: Create the GitHub pre-release and upload verified APKs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          mapfile -t assets < <(find release-assets/final -maxdepth 1 -type f \( -name '*.apk' -o -name 'SHA256SUMS.txt' \) -print | sort)
+          test "${#assets[@]}" -ge 7
+          gh release create "${{ steps.prepare.outputs.tag }}" "${assets[@]}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$SOURCE_SHA" \
+            --title "${{ steps.prepare.outputs.title }}" \
+            --prerelease \
+            --notes-file release-assets/final/RELEASE_NOTES.md
