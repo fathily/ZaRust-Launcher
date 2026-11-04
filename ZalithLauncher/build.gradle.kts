@@ -2,6 +2,9 @@ import com.android.build.api.variant.FilterConfiguration.FilterType.ABI
 import com.android.build.api.variant.impl.VariantOutputImpl
 import com.android.build.gradle.tasks.MergeSourceSetFolders
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.net.HttpURLConnection
+import java.net.URL
+import java.security.MessageDigest
 
 plugins {
     alias(libs.plugins.android.application)
@@ -148,12 +151,12 @@ val prepareZaRustBootstrapAsset by tasks.registering {
     doLast {
         zarustBootstrapAsset.parentFile.mkdirs()
         val temporary = File(zarustBootstrapAsset.parentFile, "bootstrap-aarch64.zip.part")
-        val connection = java.net.URL(zarustBootstrapUrl).openConnection().apply {
+        val connection = URL(zarustBootstrapUrl).openConnection().apply {
             connectTimeout = 20_000
             readTimeout = 120_000
         }
         try {
-            val digest = java.security.MessageDigest.getInstance("SHA-256")
+            val digest = MessageDigest.getInstance("SHA-256")
             connection.getInputStream().use { input ->
                 temporary.outputStream().buffered().use { output ->
                     val buffer = ByteArray(256 * 1024)
@@ -165,7 +168,7 @@ val prepareZaRustBootstrapAsset by tasks.registering {
                     }
                 }
             }
-            val actual = digest.digest().joinToString("") { "%02x".format(it) }
+            val actual = digest.digest().joinToString("") { "%02x".format(it.toInt() and 0xff) }
             check(actual == zarustBootstrapSha256) {
                 "ZaRust Android bootstrap SHA-256 mismatch: expected $zarustBootstrapSha256, got $actual"
             }
@@ -180,7 +183,7 @@ val prepareZaRustBootstrapAsset by tasks.registering {
             temporary.delete()
             throw error
         } finally {
-            (connection as? java.net.HttpURLConnection)?.disconnect()
+            (connection as? HttpURLConnection)?.disconnect()
         }
     }
 }
