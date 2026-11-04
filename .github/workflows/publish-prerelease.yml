@@ -40,8 +40,8 @@ jobs:
           SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
-          ci_run_id="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$SOURCE_SHA&per_page=100" \
-            --jq '[.workflow_runs[] | select(.name == "Build CI" and .conclusion == "success" and .head_sha == env.SOURCE_SHA)] | sort_by(.run_number) | last | .id // empty')"
+          ci_run_id="$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs?per_page=100" \
+            | jq -r --arg sha "$SOURCE_SHA" '[.workflow_runs[] | select(.name == "Build CI" and .conclusion == "success" and .head_sha == $sha and .head_branch == "feature/zarust-native-builder-clean")] | sort_by(.run_number) | last | .id // empty')"
           test -n "$ci_run_id" || {
             echo "No successful Build CI run exists for source commit $SOURCE_SHA." >&2
             exit 1
