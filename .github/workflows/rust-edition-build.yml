@@ -1,5 +1,5 @@
 name: Build ZaRust with Starling Rust Edition
-# [publish-beta] Retry the verified release pipeline after artifact packaging fix.
+# [publish-beta] Retry release after fixing exact matching Build CI lookup.
 
 on:
   pull_request:
