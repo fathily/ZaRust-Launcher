@@ -38,7 +38,7 @@ jobs:
       CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
       CARGO_TERM_COLOR: always
       CARGO_BUILD_JOBS: 3
-      BUILD_VARIANT: ${{ github.event.inputs.variant || 'Debug' }}
+      BUILD_VARIANT: ${{ github.event.inputs.variant || (contains(github.event.head_commit.message, '[publish-beta]') && 'Release' || 'Debug') }}
 
     steps:
       - name: Checkout ZaRust Launcher
