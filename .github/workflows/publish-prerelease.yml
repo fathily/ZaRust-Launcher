@@ -114,7 +114,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release-assets/launcher/collected
-          find release-assets/launcher -mindepth 2 -type f -name '*.apk' -exec mv -f {} release-assets/launcher/collected/ \\;
+          find release-assets/launcher -mindepth 2 -type f -name '*.apk' -exec mv -f {} release-assets/launcher/collected/ \;
           expected=(
             "ZaRust-${{ steps.version.outputs.version }}-arm64-v8a.apk"
             "ZaRust-${{ steps.version.outputs.version }}-armeabi-v7a.apk"
