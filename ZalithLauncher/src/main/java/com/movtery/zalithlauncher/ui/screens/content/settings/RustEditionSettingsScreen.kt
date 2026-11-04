@@ -119,6 +119,9 @@ fun RustEditionSettingsScreen() {
         mutableStateOf(RustNativeBuildManager.currentBuild(context))
     }
     val mainHandler = remember { Handler(Looper.getMainLooper()) }
+    val freeStorageGiB = environmentStatus.freeBytes.toDouble() / (1024.0 * 1024.0 * 1024.0)
+    val canPrepareNativeTools = environmentStatus.freeBytes >= 3L * 1024L * 1024L * 1024L
+    val canBuildNativeHere = environmentStatus.freeBytes >= 5L * 1024L * 1024L * 1024L
 
     fun appendNativeLog(line: String) {
         mainHandler.post {
@@ -455,7 +458,7 @@ fun RustEditionSettingsScreen() {
                 Text("Imported HNMOD packages: ${ZaRustOnDeviceNativeBuilder.importedHnmods(context).size}")
                 Text(
                     "Build environment: ${if (environmentStatus.ready) "Ready" else "Not ready"} · " +
-                        "Free storage: ${environmentStatus.freeBytes / (1024L * 1024L * 1024L)} GB",
+                        "Free storage: ${java.lang.String.format(java.util.Locale.ROOT, "%.1f GB", freeStorageGiB)}",
                     style = MaterialTheme.typography.bodySmall
                 )
                 Text(
@@ -469,14 +472,14 @@ fun RustEditionSettingsScreen() {
                     Button(
                         onClick = { prepareNativeBuilder() },
                         enabled = !nativeBuilderPreparing && !nativeBuildRunning &&
-                            environmentStatus.nativeRunnerInstalled
+                            environmentStatus.nativeRunnerInstalled && canPrepareNativeTools
                     ) {
                         Text(if (nativeBuilderPreparing) "Preparing…" else "Prepare Build Tools")
                     }
                     Button(
                         onClick = { showNativeTrustDialog = true },
                         enabled = !nativeBuilderPreparing && !nativeBuildRunning &&
-                            environmentStatus.nativeRunnerInstalled &&
+                            environmentStatus.nativeRunnerInstalled && canBuildNativeHere &&
                             starlingBase.isNotBlank()
                     ) {
                         Text(if (nativeBuildRunning) "Building…" else "Build Native Here")
@@ -524,7 +527,7 @@ fun RustEditionSettingsScreen() {
                     )
                 }
                 Text(
-                    "Storage note: the first setup downloads the ARM64 Rust/Cargo and Android sysroot packages. A full compile needs several GB of free internal storage and can take a long time on mobile hardware. Native HNMOD source is executable code; only build packages you trust.",
+                    "Storage requirements: Prepare Build Tools needs 3 GB free to install Rust/Cargo and the Android sysroot. Build Native Here needs 5 GB free working space for the source snapshot, Cargo build output, and temporary staging. The PRoot runner and verified bootstrap archive are bundled in this APK; the compiler packages are installed into ZaRust's private storage during preparation. Native HNMOD source is executable code; only build packages you trust.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error
                 )

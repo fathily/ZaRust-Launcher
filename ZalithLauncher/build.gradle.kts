@@ -133,6 +133,58 @@ android {
     }
 }
 
+val zarustBootstrapUrl = "https://github.com/termux/termux-packages/releases/download/bootstrap-2026.11.01-r1%2Bapt.android-7/bootstrap-aarch64.zip"
+val zarustBootstrapSha256 = "5a1429b6c68ee3bdc17b5fd6e47ba42933ec924cd7283fe74992574e1d5badae"
+val zarustBootstrapAsset = rootProject.file("ZalithLauncher/src/main/assets/rust-builder/bootstrap-aarch64.zip")
+
+val prepareZaRustBootstrapAsset by tasks.registering {
+    inputs.property("bootstrapUrl", zarustBootstrapUrl)
+    inputs.property("bootstrapSha256", zarustBootstrapSha256)
+    outputs.file(zarustBootstrapAsset)
+    onlyIf {
+        project.findProperty("rustEditionEnabled") == "true" &&
+            (projectArch == "all" || projectArch == "arm64")
+    }
+    doLast {
+        zarustBootstrapAsset.parentFile.mkdirs()
+        val temporary = File(zarustBootstrapAsset.parentFile, "bootstrap-aarch64.zip.part")
+        val connection = java.net.URL(zarustBootstrapUrl).openConnection().apply {
+            connectTimeout = 20_000
+            readTimeout = 120_000
+        }
+        try {
+            val digest = java.security.MessageDigest.getInstance("SHA-256")
+            connection.getInputStream().use { input ->
+                temporary.outputStream().buffered().use { output ->
+                    val buffer = ByteArray(256 * 1024)
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        digest.update(buffer, 0, count)
+                        output.write(buffer, 0, count)
+                    }
+                }
+            }
+            val actual = digest.digest().joinToString("") { "%02x".format(it) }
+            check(actual == zarustBootstrapSha256) {
+                "ZaRust Android bootstrap SHA-256 mismatch: expected $zarustBootstrapSha256, got $actual"
+            }
+            if (zarustBootstrapAsset.exists()) {
+                check(zarustBootstrapAsset.delete()) { "Could not replace the previous bootstrap APK asset." }
+            }
+            check(temporary.renameTo(zarustBootstrapAsset)) {
+                "Could not place the verified Android bootstrap in the APK assets."
+            }
+            logger.lifecycle("Packaged verified ARM64 Android bootstrap: ${zarustBootstrapAsset.length()} bytes")
+        } catch (error: Throwable) {
+            temporary.delete()
+            throw error
+        } finally {
+            (connection as? java.net.HttpURLConnection)?.disconnect()
+        }
+    }
+}
+
 val buildZaRustProotHost by tasks.registering(Exec::class) {
     val nativeHostScript = rootProject.file("native-host/build.sh")
     val jniOutput = rootProject.file("ZalithLauncher/src/main/jniLibs/arm64-v8a")
@@ -164,7 +216,7 @@ val buildZaRustProotHost by tasks.registering(Exec::class) {
 }
 
 tasks.matching { it.name == "preBuild" }.configureEach {
-    dependsOn(buildZaRustProotHost)
+    dependsOn(buildZaRustProotHost, prepareZaRustBootstrapAsset)
 }
 
 androidComponents {

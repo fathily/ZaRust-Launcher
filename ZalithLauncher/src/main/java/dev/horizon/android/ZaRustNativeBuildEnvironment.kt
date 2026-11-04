@@ -33,7 +33,7 @@ object ZaRustNativeBuildEnvironment {
     private const val GUEST_WORK = "/data/data/com.zarust.launcher/files/native-builder"
     private const val MAX_BOOTSTRAP_DOWNLOAD = 128L * 1024L * 1024L
     private const val MAX_BOOTSTRAP_EXPANDED = 768L * 1024L * 1024L
-    private const val MIN_FREE_SPACE = 5L * 1024L * 1024L * 1024L
+    private const val MIN_PREPARE_FREE_SPACE = 3L * 1024L * 1024L * 1024L
     private const val OUTPUT_LIMIT = 512 * 1024
 
     data class CommandResult(
@@ -122,8 +122,8 @@ object ZaRustNativeBuildEnvironment {
         requireRunner(context)
 
         val free = StatFs(context.filesDir.absolutePath).availableBytes
-        require(free >= MIN_FREE_SPACE) {
-            "At least 5 GB of free internal storage is required for the Android build environment."
+        require(free >= MIN_PREPARE_FREE_SPACE) {
+            "At least 3 GB of free internal storage is required to unpack the Android bootstrap and install Rust/Cargo plus the Android sysroot."
         }
 
         val prefix = guestFile(context, PREFIX)
@@ -349,7 +349,16 @@ object ZaRustNativeBuildEnvironment {
             "Could not create the bootstrap staging directory."
         }
 
-        downloadVerified(BOOTSTRAP_URL, partial, BOOTSTRAP_SHA256, onLine)
+        val bundledBootstrap = runCatching {
+            context.assets.open("rust-builder/bootstrap-aarch64.zip")
+        }.getOrNull()
+        if (bundledBootstrap != null) {
+            copyBundledVerified(bundledBootstrap, partial, BOOTSTRAP_SHA256, onLine)
+            onLine("Using the SHA-256 verified Android bootstrap bundled in this APK.")
+        } else {
+            onLine("Bundled bootstrap is unavailable; downloading the pinned archive.")
+            downloadVerified(BOOTSTRAP_URL, partial, BOOTSTRAP_SHA256, onLine)
+        }
         check(partial.renameTo(archive)) { "Could not finalize the bootstrap archive." }
 
         onLine("Extracting the Android userspace…")
@@ -422,6 +431,43 @@ object ZaRustNativeBuildEnvironment {
         File(rootfs, "tmp").mkdirs()
         archive.delete()
         onLine("Android userspace installed.")
+    }
+
+    private suspend fun copyBundledVerified(
+        input: java.io.InputStream,
+        destination: File,
+        expectedSha256: String,
+        onLine: (String) -> Unit
+    ) = withContext(Dispatchers.IO) {
+        val digest = MessageDigest.getInstance("SHA-256")
+        var received = 0L
+        destination.parentFile?.mkdirs()
+        try {
+            FileOutputStream(destination).use { output ->
+                input.use { source ->
+                    val buffer = ByteArray(256 * 1024)
+                    while (true) {
+                        val count = source.read(buffer)
+                        if (count < 0) break
+                        received += count
+                        require(received <= MAX_BOOTSTRAP_DOWNLOAD) {
+                            "Bundled Android bootstrap exceeds the safety limit."
+                        }
+                        digest.update(buffer, 0, count)
+                        output.write(buffer, 0, count)
+                    }
+                }
+                output.fd.sync()
+            }
+            require(received > 0L) { "Bundled Android bootstrap asset is empty." }
+            require(digest.digest().toHex() == expectedSha256) {
+                "Bundled Android bootstrap SHA-256 verification failed."
+            }
+            onLine("Verified bundled Android bootstrap (${received / 1024 / 1024} MB).")
+        } catch (error: Throwable) {
+            destination.delete()
+            throw error
+        }
     }
 
     private suspend fun downloadVerified(

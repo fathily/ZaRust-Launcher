@@ -153,4 +153,9 @@ metadata = {
 (pathlib.Path(out) / "build.json").write_text(json.dumps(metadata, indent=2) + "\n")
 PY
 cat "$out/build.json"
+
+# Keep the source snapshot and Cargo target cache for repeat builds, but release the
+# duplicate patched/staged worktree (which can consume multiple GB on a phone).
+rm -rf "$work"
+echo "Removed temporary staging worktree: $work"
 echo "LOCAL_NATIVE_BUILD_SUCCESS"
