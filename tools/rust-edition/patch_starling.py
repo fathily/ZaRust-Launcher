@@ -546,14 +546,10 @@ replace_once(
     // Older ZaRust builds wrote the generated layout straight to touch-layout.json.
     // Do not mistake that legacy file for the player's original Starling layout.
     let legacy_zalith_layout = target.is_file()
-        && std::fs::read_to_string(&target)
-            .ok()
-            .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
-            .and_then(|value| {
-                value.get("zarustSource")
-                    .and_then(|source| source.as_str().map(str::to_owned))
-            })
-            .as_deref() == Some("zalith-control-manager");
+        && std::fs::read_to_string(&target).map_or(false, |text| {
+            text.contains("\\"zarustSource\\"")
+                && text.contains("\\"zalith-control-manager\\"")
+        });
 
     if let Some(zarust_touch_layout) = zarust_touch_layout {
         notes.push(format!(
