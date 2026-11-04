@@ -1,78 +1,113 @@
 # ZaRust Launcher
 
 <p align="center">
-  <b>One Android launcher. Two ways to play Minecraft: Java Edition.</b><br/>
-  Zalith-based Java Edition + Horizon Rust Edition powered on Android by Starling.
+  <img src="ZalithLauncher/src/main/res/drawable-nodpi/zarust_launcher_foreground.webp" width="220" alt="ZaRust Launcher app icon"/>
 </p>
 
 <p align="center">
-  <a href="https://github.com/fathily/ZaRust-Launcher/actions"><img src="https://img.shields.io/github/actions/workflow/status/fathily/ZaRust-Launcher/build.yml?label=Build%20CI" alt="Build CI"/></a>
-  <a href="https://github.com/fathily/ZaRust-Launcher/blob/main/LICENSE"><img src="https://img.shields.io/badge/launcher-GPL--3.0-blue" alt="GPL-3.0"/></a>
-  <a href="https://github.com/JuanLuci/starling/blob/android/LICENSE"><img src="https://img.shields.io/badge/Starling-MIT-green" alt="Starling MIT"/></a>
+  <strong>One Android app. Java Edition and Horizon Rust Edition.</strong><br/>
+  The Zalith Launcher 2+ experience and Horizon Rust are brought together in a single launcher.
 </p>
 
-> **Unofficial community modification.** ZaRust Launcher is maintained and modified by **AlfaaBEJIRR**. It is not an official product of Zalith Launcher, Horizon, Starling, Mojang, or Microsoft, and this project is not endorsed by those upstream projects.
+<p align="center">
+  <a href="https://github.com/fathily/ZaRust-Launcher/actions"><img src="https://img.shields.io/github/actions/workflow/status/fathily/ZaRust-Launcher/push_ci.yml?label=Build%20CI" alt="Build CI"/></a>
+  <a href="https://github.com/fathily/ZaRust-Launcher/releases"><img src="https://img.shields.io/github/v/release/fathily/ZaRust-Launcher?include_prereleases&label=latest%20release" alt="Latest release"/></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-blue" alt="GPL-3.0"/></a>
+  <img src="https://img.shields.io/badge/status-experimental-orange" alt="Experimental"/>
+</p>
 
-## What is ZaRust?
+> **Unofficial community project.** ZaRust Launcher is maintained and integrated by **AlfaaBEJIRR**. It is not affiliated with, endorsed by, or an official distribution of the Zalith Launcher, Horizon, Starling, Mojang, or Microsoft teams.
 
-ZaRust brings two game engines into one Android application and one launcher experience. The goal is to let players choose an edition without installing or switching between two separate launcher apps.
+## What is ZaRust Launcher?
 
-| Edition | Foundation | Role inside ZaRust |
+**ZaRust Launcher combines the Zalith Launcher 2+ foundation with Horizon Rust Edition inside one Android application.** The goal is simple: players can access both editions from ZaRust instead of installing and switching between separate launcher apps.
+
+| Edition | Technology | Purpose |
 | --- | --- | --- |
-| **Java Edition** | Zalith Launcher 2 | Existing Java launcher, version management, Java runtimes, accounts, renderers, mods, controls, and game launch flow. |
-| **Rust Edition** | Horizon Rust engine + Starling Android port | Native Rust-based game engine integrated into ZaRust. Starling supplies the Android port/platform integration; ZaRust provides the surrounding launcher entry, settings integration, and account hand-off. |
+| **Java Edition** | Zalith Launcher 2+ | The established Java launcher experience, including version management, Java runtimes, accounts, renderers, mods, and launcher settings. |
+| **Rust Edition** | Horizon Rust engine + Starling Android port | A native Rust-based game runtime integrated into ZaRust, with Rust-specific settings and an Android launch path. |
 
-**Important distinction:** Starling is not a ZaRust-owned engine. It is a separate upstream Android project by JuanLuci, based on Horizon. ZaRust embeds/adapts the Android engine so both editions can be managed from the ZaRust app. Credit and upstream links are provided below.
+Starling is the Android project used to bring the Horizon-based engine to Android. It remains an independently maintained upstream project; ZaRust integrates and adapts it rather than claiming ownership of its engine.
 
-## Project goals
+## Project direction
 
-- Keep both editions inside the same `com.zarust.launcher` application.
-- Preserve the existing Zalith-based Java Edition workflow.
-- Manage Rust Edition from ZaRust screens rather than opening a second launcher UI.
-- Reuse the selected ZaRust account where the supported account type allows it.
-- Keep Rust Edition game data separate from Java Edition versions, mods, saves, and runtime files.
-- Provide a choice of ZaRust/Zalith or Starling input handling where supported by the integrated build.
+- **One app:** both editions are accessed from the ZaRust Launcher application (package ID: **com.zarust.launcher**).
+- **One launcher experience:** Rust Edition is intended to live inside ZaRust's interface, not open a separate Starling launcher.
+- **Separate game data:** Java and Rust versions, saves, mods, and runtime files remain separated where their formats and engines differ.
+- **Edition-specific settings:** Java settings remain part of the Zalith-based launcher, while Rust-specific options are managed in the Rust Edition section.
+- **Input integration:** ZaRust/Zalith controls and Starling controls can be selected where supported by the current integration. Touch, keyboard, and gamepad behavior is still being tested.
+- **Local native building:** the experimental Native Builder can prepare a private Android toolchain and compile supported ARM64 Rust native builds on the device. A separate Termux app or remote build worker is not required.
 
-Some integration work is still under development. Features can vary by build and device; do not assume every option is production-ready just because it appears in Settings.
+## Native mods and Native Builder
 
-## Native mods
+ZaRust has an import and staging path for Horizon native **.hnmod** packages. The experimental on-device Native Builder is designed to apply compatible native packages to a selected Starling Android source base and compile an ARM64 native library locally.
 
-ZaRust includes a staging and review path for Horizon native `.hnmod` source bundles. A reviewed bundle can be built for Android `arm64-v8a` by the repository's native-build workflow and delivered as a version-matched native library. Imported files are **not** executed or built automatically. Only reviewed bundles committed to the approved repository set are eligible for the cloud build.
+**This feature is not production-ready.** The first setup still installs Rust/Cargo and Android build tools into ZaRust's private storage, and a full native compile needs substantial free internal storage. Current native building is intended for ARM64 Android devices. Package compatibility depends on the Horizon/Starling revision and the contents of each .hnmod.
 
-Native code runs inside the game process and can access game memory and files. Review source carefully before approving a native mod. Java `.jar`, Fabric, Forge, NeoForge, Iris, and Sodium mods are not automatically compatible with the Rust Edition.
+Native packages contain executable source code. Only import and build packages from sources you trust. Java .jar, Fabric, Forge, NeoForge, Iris, and Sodium mods are not automatically compatible with Horizon Rust Edition.
+
+## Current status
+
+ZaRust is an active community integration project. CI builds are available, but a green APK build does **not** mean every feature has passed real-device gameplay testing.
+
+- General Android APK builds: [GitHub Actions](https://github.com/fathily/ZaRust-Launcher/actions).
+- User-facing builds and experimental packages: [Releases](https://github.com/fathily/ZaRust-Launcher/releases).
+- The integrated Starling/Horizon Rust Edition build currently targets **Android ARM64 (arm64-v8a)**.
+- Other ABI APKs are provided for the launcher build; check each release asset's label before installing.
+- Experimental builds may change, be replaced, or be withdrawn as integration bugs are fixed.
+
+## Known issues and unfinished work
+
+Please read this section before installing a pre-release. **There are still known bugs and incomplete integrations.**
+
+- **Touch controls:** switching between Zalith and Starling layouts may not behave consistently in every game screen or after an app update. The control bridge is being corrected and needs more device testing.
+- **Keyboard and gamepad:** some mappings and control combinations still need verification.
+- **Native Builder:** on-device compilation is experimental, currently ARM64-only, and can fail for unsupported source revisions or native packages. Rust/Cargo and the Android sysroot are installed during preparation; the complete compiler toolchain is not yet fully preinstalled in every build.
+- **Storage:** preparing the local build environment and compiling a native runtime requires several gigabytes of free internal storage. The exact requirement depends on cached source and build output.
+- **Shaders and mods:** Horizon Rust, Starling, and Minecraft Java use different engine paths and package formats. Do not assume Java shaders or mods will work in Rust Edition.
+- **Settings and localization:** some Rust-specific settings and strings may still be incomplete or inconsistent with the launcher's selected language.
+- **Device compatibility:** the Rust Edition has not been validated on every Android version, ABI, GPU, controller, or device model.
+
+When reporting a bug, include the ZaRust build or release tag, device model, Android version, ABI, edition, steps to reproduce, and a relevant log. Please report ZaRust integration problems here rather than assuming they are upstream Horizon or Starling bugs.
+
+## Downloads
+
+Go to the **[ZaRust Releases page](https://github.com/fathily/ZaRust-Launcher/releases)** and read the notes attached to each build.
+
+Typical asset names:
+
+| Asset | Intended use |
+| --- | --- |
+| **ZaRust-<version>-arm64-v8a.apk** | Standard launcher build for 64-bit ARM Android devices. |
+| **ZaRust-<version>-armeabi-v7a.apk** | Standard launcher build for 32-bit ARM Android devices. |
+| **ZaRust-<version>-x86_64.apk / x86.apk** | Standard launcher builds for the matching x86 ABI. |
+| **ZaRust-<version>.apk** | Universal launcher build; larger download, ABI coverage depends on the release. |
+| **ZaRust-Starling-Release-arm64-v8a.apk** | Combined Rust Edition build for ARM64 Android devices. |
+
+Prefer the combined Starling/Rust Edition asset when the release notes identify it as available. A standard launcher APK and the Rust-integrated APK are not interchangeable release variants.
 
 ## Upstream projects and credits
 
-This project combines and adapts work from separate open-source projects. Their maintainers retain credit for their own work; ZaRust does not claim authorship of upstream code.
+ZaRust combines and adapts work from independent open-source projects. Their original authors and maintainers retain credit for their own work.
 
 | Project / contributor | Contribution | Source |
 | --- | --- | --- |
-| **AlfaaBEJIRR** | ZaRust maintainer, integration, modifications, launcher UI and project packaging | [ZaRust repository](https://github.com/fathily/ZaRust-Launcher) · [TikTok @alfathgpp](https://www.tiktok.com/@alfathgpp) |
-| **Zalith Launcher 2** and contributors | Original Android launcher foundation used by the Java Edition | [Upstream repository](https://github.com/ZalithLauncher/ZalithLauncher2) |
-| **JuanLuci** | Maintainer of the Starling Android port used to provide Android support for the Rust engine | [Starling Android repository](https://github.com/JuanLuci/starling) |
-| **Ludovic Marie and Horizon contributors** | Horizon Rust game engine on which Starling is based | [Horizon repository](https://github.com/ludovic111/horizon) |
-| **Vasysik** | Horizon Android implementation/reference used during integration research | [Horizon Android repository](https://github.com/Vasysik/horizon-android) |
+| **AlfaaBEJIRR** | ZaRust maintainer, integration, launcher modifications, UI, and packaging | [ZaRust repository](https://github.com/fathily/ZaRust-Launcher) · [TikTok @alfathgpp](https://www.tiktok.com/@alfathgpp) |
+| **Zalith Launcher 2** and contributors | Android launcher foundation used by the Java Edition | [ZalithLauncher2](https://github.com/ZalithLauncher/ZalithLauncher2) |
+| **JuanLuci** | Maintainer of the Starling Android port used to run the Horizon-based engine on Android | [Starling](https://github.com/JuanLuci/starling) |
+| **Horizon Rust contributors** | Horizon Rust engine and upstream development | [horizon-rust/horizon](https://github.com/horizon-rust/horizon) |
+| **Vasysik** | Horizon Android implementation/reference used during integration research | [horizon-android](https://github.com/Vasysik/horizon-android) |
 
-### Upstream license notices
+## Licensing and notices
 
-- ZaRust's launcher code follows the GNU General Public License v3.0. See [LICENSE](./LICENSE).
-- Starling is published under the MIT License. Its upstream copyright and license notice must be retained with redistributed copies or substantial portions. See [Starling LICENSE](https://github.com/JuanLuci/starling/blob/android/LICENSE).
-- Horizon and other bundled dependencies retain their own licenses and notices. Check their upstream repositories before redistributing modified builds.
-- Minecraft is proprietary software. ZaRust, Starling, and Horizon are unofficial projects and do not include or grant a Minecraft license. Use game files from a copy of Minecraft you are entitled to use.
-
-## Builds and development status
-
-- General launcher builds: [GitHub Actions](https://github.com/fathily/ZaRust-Launcher/actions).
-- Combined Rust Edition build: the dedicated Starling + ZaRust workflow targets Android `arm64-v8a`.
-- Source branch for the current integration work: `feature/rust-edition-horizon`.
-- Report reproducible issues with the affected device, Android version, ABI, build/run link, and relevant log. Do not report an integration bug to an upstream maintainer unless it can also be reproduced in that upstream project without ZaRust changes.
-
-This repository is an active community modification. Treat test builds as experimental until the relevant CI checks and real-device gameplay tests pass.
+- ZaRust launcher code is distributed under the **GNU GPL v3.0**. See [LICENSE](./LICENSE).
+- Starling, Horizon, Zalith Launcher, and bundled dependencies retain their own license terms and copyright notices. Review the corresponding upstream license files when redistributing source or binaries.
+- Minecraft is proprietary software. ZaRust does not grant a Minecraft license or include a copy of the game. Use game files only from a copy you are entitled to use.
+- This is an unofficial community project and is not endorsed by Mojang or Microsoft.
 
 ## Maintainer
 
-**AlfaaBEJIRR** — ZaRust maintainer and integrator.
+**AlfaaBEJIRR** — ZaRust Launcher maintainer and integrator.
 
 - TikTok: [@alfathgpp](https://www.tiktok.com/@alfathgpp)
 - Repository: [fathily/ZaRust-Launcher](https://github.com/fathily/ZaRust-Launcher)
-

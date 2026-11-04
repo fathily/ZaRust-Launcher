@@ -17,7 +17,7 @@ on:
         options:
           - Debug
           - Release
-        default: Debug
+        default: Release
 
 permissions:
   contents: read
