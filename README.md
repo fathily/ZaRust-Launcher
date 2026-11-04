@@ -1,7 +1,7 @@
 # ZaRust Launcher
 
 <p align="center">
-  <img src="ZalithLauncher/src/main/res/drawable-nodpi/zarust_launcher_foreground.png" width="220" alt="ZaRust Launcher app icon"/>
+  <img src="ZalithLauncher/src/main/res/drawable-nodpi/file_00000000b614821191c6dafc213e840e.png" width="220" alt="ZaRust Launcher app icon"/>
 </p>
 
 <p align="center">
