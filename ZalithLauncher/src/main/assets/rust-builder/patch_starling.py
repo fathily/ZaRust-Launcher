@@ -194,7 +194,7 @@ newUpdate = """    public boolean installUpdate(String name) {
         return false;
     }"""
 replace_once(activity, oldUpdate, newUpdate)
-activity.write_text(text, encoding="utf-8")
+
 
 replace_once(
     root / "crates/horizon-client/src/android_lib.rs",
