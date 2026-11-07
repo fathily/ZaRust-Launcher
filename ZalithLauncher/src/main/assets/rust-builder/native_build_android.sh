@@ -60,7 +60,7 @@ work="$cache/work-$key"
 rm -rf "$work"
 mkdir -p "$work/source" "$work/mods" "$out"
 # The source copy and mixin output are temporary. Always remove both, including on failure.
-trap 'rm -rf "$work"' EXIT
+trap 'rm -rf "$work" "${GUEST_WORK:-/data/data/com.zarust.launcher/files/native-builder}/build-mods"' EXIT
 build="$work/stage"
 cp -a "$source_dir/." "$work/source/"
 echo "$commit" > "$work/source/.horizon-revision"
