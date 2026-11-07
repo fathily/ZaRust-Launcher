@@ -34,6 +34,8 @@ for imp in [
     if imp not in text:
         text = text.replace("import java.io.File;", "import java.io.File;\n" + imp, 1)
 
+activity.write_text(text, encoding="utf-8")
+
 replace_once(
     activity,
     """    @Override
@@ -499,19 +501,22 @@ extern "system" fn Java_io_github_juanluci_starling_StarlingActivity_zarustDownl
 """
 
 android_lib = root / "crates/horizon-client/src/android_lib.rs"
-replace_once(
-    android_lib,
-    """static SHARED_FOLDER: OnceLock<PathBuf> = OnceLock::new();""",
-    """static SHARED_FOLDER: OnceLock<PathBuf> = OnceLock::new();
-
-""" + rust_state,
+android_lib_text = android_lib.read_text(encoding="utf-8")
+jni_symbol = "Java_io_github_juanluci_starling_StarlingActivity_zarustDownloadState"
+if jni_symbol in android_lib_text:
+    raise SystemExit(f"{android_lib}: ZaRust download-state JNI hook is already present")
+android_lib.write_text(
+    android_lib_text.rstrip() + "\n\n" + rust_state.lstrip(),
+    encoding="utf-8",
 )
+
+android_rs = root / "crates/horizon-client/src/android.rs"
 
 # Important: game_folder() migrates old touch-layout.json from private storage to the
 # selected game folder. Apply ZaRust's generated layout only AFTER that migration, otherwise
 # the old Starling layout can overwrite the newly converted Zalith preset.
 replace_once(
-    android_lib,
+    android_rs,
     """    let home = game_folder(&private, &mut notes);
     let (args, env) = command_line(&private);""",
     """    let home = game_folder(&private, &mut notes);
@@ -635,5 +640,6 @@ replace_once(
     }
     let (args, env) = command_line(&private);""",
 )
+
 
 print("Starling source patches applied.")
