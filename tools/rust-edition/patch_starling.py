@@ -163,7 +163,9 @@ replace_once(
                 ? Environment.isExternalStorageManager()
                 : context.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
                         == PackageManager.PERMISSION_GRANTED;
-        String name = context.getPackageName().endsWith(".dev") ? "StarlingDev" : "Starling";
+        String id = context.getPackageName();
+        String name = id.endsWith(".dev") ? "StarlingDev"
+                : id.endsWith(".preview") ? "StarlingPreview" : "Starling";
         return allowed
                 ? new File(Environment.getExternalStorageDirectory(), name).getPath()
                 : null;
@@ -197,15 +199,15 @@ replace_once(activity, oldUpdate, newUpdate)
 
 
 replace_once(
-    root / "crates/horizon-client/src/android_lib.rs",
-    """    horizon_client::accounts::resume();
-    winit::platform::android::set_input_hook(input::hook);""",
-    """    horizon_client::accounts::resume();
-    // Fetch and verify Starling's official game files once; interrupted downloads resume.
-    if !horizon_client::accounts::files_root().join("starling-files.json").is_file() {
-        horizon_client::accounts::download_files();
-    }
-    winit::platform::android::set_input_hook(input::hook);""",
+    root / "crates/horizon-client/src/android.rs",
+    """        crate::accounts::resume();
+        winit::platform::android::set_input_hook(input::hook);""",
+    """        crate::accounts::resume();
+        // Fetch and verify Starling's official game files once; interrupted downloads resume.
+        if !crate::accounts::files_root().join("starling-files.json").is_file() {
+            crate::accounts::download_files();
+        }
+        winit::platform::android::set_input_hook(input::hook);""",
 )
 
 replace_once(
