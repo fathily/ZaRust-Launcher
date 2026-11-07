@@ -169,13 +169,18 @@ object ZaRustOnDeviceNativeBuilder {
             metadataFile = metadataFile
         )
         onLine("Native library installed locally: $installedName")
-        // The installed runtime is copied into its own versioned folder. Drop the downloaded
-        // Starling source and staged mod copies so they do not occupy storage between builds.
+        // installLocal has copied and verified both files into files/native/<buildName>.
+        // Remove the staging output as well as temporary source copies to avoid keeping a
+        // second full native library beside the active runtime.
+        val installedDirectory = File(File(context.filesDir, "native"), installedName)
+        val installedLibrary = File(installedDirectory, "libhorizon_android.so")
+        val installedMetadata = File(installedDirectory, "build.json")
+        runCatching { outDir.deleteRecursively() }
         runCatching { source.deleteRecursively() }
         runCatching {
             File(ZaRustNativeBuildEnvironment.workDirectory(context), "build-mods").deleteRecursively()
         }
-        return BuildResult(installedName, starlingCommit, modIds, library, metadataFile)
+        return BuildResult(installedName, starlingCommit, modIds, installedLibrary, installedMetadata)
     }
 
     private suspend fun obtainStarlingSource(
