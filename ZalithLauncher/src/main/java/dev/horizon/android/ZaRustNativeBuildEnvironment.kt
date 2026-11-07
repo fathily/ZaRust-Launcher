@@ -151,7 +151,7 @@ object ZaRustNativeBuildEnvironment {
                 "$PREFIX/bin/apt-get", "install", "-y",
                 "rust", "rust-std-aarch64-linux-android", "clang", "lld", "ndk-sysroot", "libandroid-execinfo", "git", "python",
                 "nodejs", "cmake", "make", "ninja", "pkg-config",
-                "patch", "rsync", "tar", "unzip", "coreutils", "findutils",
+                "patch", "tar", "unzip", "coreutils", "findutils",
                 "grep", "sed", "binutils", "openssl", "zlib"
             ),
             timeoutMs = 60 * 60 * 1000L,
@@ -169,7 +169,7 @@ object ZaRustNativeBuildEnvironment {
                 "rustc --version && cargo --version && clang --version && " +
                     "clang++ --version && llvm-ar --version && llvm-strip --version && " +
                     "git --version && python --version && node --version && npm --version && " +
-                    "rsync --version && readelf --version && " +
+                    "readelf --version && " +
                     "test -d $PREFIX/share/ndk-sysroot -o -d $PREFIX/opt/ndk-sysroot " +
                     "-o -d $PREFIX/include/android && " +
                     "test -n \"$(find $PREFIX/lib/rustlib/aarch64-linux-android/lib -maxdepth 1 -name 'libstd-*.rlib' -print -quit)\" && " +
