@@ -56,10 +56,12 @@ key=$(
     done
   } | sha256sum | cut -c1-16
 )
-build="$cache/build-$key"
 work="$cache/work-$key"
 rm -rf "$work"
 mkdir -p "$work/source" "$work/mods" "$out"
+# The source copy and mixin output are temporary. Always remove both, including on failure.
+trap 'rm -rf "$work"' EXIT
+build="$work/stage"
 cp -a "$source_dir/." "$work/source/"
 echo "$commit" > "$work/source/.horizon-revision"
 
@@ -92,14 +94,10 @@ echo "ZaRust Native Builder: engine $commit, native mods: $(ls "$work/mods" | tr
 cargo fetch --locked --manifest-path "$work/source/Cargo.toml"
 "$tools/bin/horizon-mixins" apply --workspace "$work/source" --mods "$work/mods" --out "$work/stage"
 
-mkdir -p "$build"
-rsync -rtp --checksum --delete \
-  --exclude /target/ \
-  --exclude "/$manifest" \
-  --exclude /crates/horizon-android/plan-stub.rs \
-  "$work/stage/" "$build/"
-cp "$work/manifest.original" "$work/manifest"
-cmp -s "$work/manifest" "$build/$manifest" || cp "$work/manifest" "$build/$manifest"
+[ -f "$build/$manifest" ] || fail "Horizon Mixins did not produce a complete Starling workspace."
+# Build directly in the mixin output. The former extra rsync created another full
+# copy of the workspace (and retained a second Cargo target tree) on the phone.
+cp "$work/manifest.original" "$build/$manifest"
 
 # Starling's JavaScript module engine is part of the Rust runtime.
 js_dir="$build/crates/starling-mod-sdk/js-engine"
@@ -116,6 +114,9 @@ fi
 # Cargo uses Termux's native Android host compiler and the NDK sysroot package.
 cd "$build"
 export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-2}"
+export CARGO_INCREMENTAL=0
+export CARGO_PROFILE_FAST_DEBUG=0
+export CARGO_PROFILE_FAST_INCREMENTAL=false
 export CARGO_TARGET_DIR="$build/target"
 export RUSTFLAGS="-C link-arg=-Wl,-z,max-page-size=16384 -C link-arg=-L$PREFIX/lib -C link-arg=-l:libandroid-execinfo.a -C link-arg=-lc++_shared"
 cargo build --locked --target aarch64-linux-android --profile fast -p horizon-android
@@ -154,8 +155,7 @@ metadata = {
 PY
 cat "$out/build.json"
 
-# Keep the source snapshot and Cargo target cache for repeat builds, but release the
-# duplicate patched/staged worktree (which can consume multiple GB on a phone).
-rm -rf "$work"
-echo "Removed temporary staging worktree: $work"
+# The EXIT trap removes the patched source, mixin workspace, node_modules and Cargo
+# target tree. The verified runtime library is the only build output kept by ZaRust.
+echo "Temporary source, staging and Cargo target files will be removed."
 echo "LOCAL_NATIVE_BUILD_SUCCESS"
