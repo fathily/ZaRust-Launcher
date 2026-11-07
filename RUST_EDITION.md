@@ -7,7 +7,7 @@ ZaRust is one Android app with two game paths:
 
 ## Upstream and version tracking
 
-The Android build checks out [JuanLuci/Starling](https://github.com/JuanLuci/starling) at the pinned Android-compatible revision 1d45d81bad530e20cfa18e9b47b1d7247b469ea4. This advances the previous pin by four commits.
+The Android build checks out [JuanLuci/Starling](https://github.com/JuanLuci/starling) at the pinned Android-compatible revision 6ce7ca2b3043ec1c347ae88cb907890dee3f0186. This tracks Starling Android 0.2.2 (`6ce7ca2`), including the latest Android-side fixes available on 2026-11-07.
 
 [Horizon Rust](https://github.com/horizon-rust/horizon) is the upstream engine repository. Its current mainline is not a drop-in replacement for the Android port: Android activity glue, JNI, storage setup, and Android build packaging must remain compatible. Mainline changes therefore need to be reviewed and ported through the Android branch rather than blindly replacing the Starling source. The [Vasysik Horizon Android repository](https://github.com/Vasysik/horizon-android) remains a related reference implementation.
 
@@ -29,12 +29,12 @@ The on-device builder is designed to compile `libhorizon_android.so` on the Andr
 6. The resulting library and JSON manifest are checked for app version, ABI, ELF machine type, file size, and SHA-256 before the runtime selector is updated.
 7. Restart Rust Edition to load the custom build. Use **Use Built-in Runtime** to return to the library bundled in the installed ZaRust APK.
 
-Each build begins from the selected Starling base, not from a previous modded source tree. The source snapshot and Cargo caches are kept in ZaRust's private `files/native-builder/` directory. A different Starling base or mod set receives a different build identity.
+Each build begins from the selected Starling base, not from a previous modded source tree. The toolchain and package caches remain in ZaRust's private `files/native-builder/` directory. Temporary source snapshots and Cargo target output are removed after a successful build; a later rebuild downloads the selected Starling source again.
 
 ### Device requirements and current limitations
 
 - ARM64 Android devices only. The PRoot host runner is packaged for `arm64-v8a`.
-- At least 5 GB of free internal storage is required by the current preflight check; more free space is recommended for the Rust target cache and JavaScript module engine.
+- The first toolchain setup requires at least 3 GB free before installation. After setup and source download, the builder checks free space dynamically (at least 3 GB, adjusted for the source size) before compiling. It removes temporary patched workspaces, Node modules, staged mods, and Cargo target output after the build instead of retaining multiple full source/build copies.
 - An internet connection is required for the first setup and for downloading a Starling source revision and Cargo dependencies. Source retrieval happens inside ZaRust; it does not open a GitHub page or start Actions. Previously downloaded sources and build dependencies are cached locally.
 - Native compilation can be memory-intensive and may take a long time on mobile hardware. The default Cargo job count is deliberately limited.
 - A downloaded `.hnmod` remains inactive until the local native compile succeeds and its resulting library passes validation.
