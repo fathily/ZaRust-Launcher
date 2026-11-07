@@ -233,6 +233,19 @@ object ZaRustNativeBuildEnvironment {
                 "Update the matching rust and rust-std packages, then retry.\\n" +
                 smokeResult.output.takeLast(5000)
         }
+        // Remove the one-off smoke-test workspace and release downloaded .deb archives.
+        runCatching { smokeRoot.deleteRecursively() }
+        runCatching {
+            run(
+                context,
+                listOf(
+                    "$PREFIX/bin/sh", "-lc",
+                    "apt-get clean && rm -rf $PREFIX/var/lib/apt/lists/*"
+                ),
+                timeoutMs = 60_000,
+                onLine = onLine
+            )
+        }
         onLine("Rust host compiler passed build-script and proc-macro checks.")
         status(context)
     }
@@ -358,6 +371,9 @@ object ZaRustNativeBuildEnvironment {
         } else {
             onLine("Bundled bootstrap is unavailable; downloading the pinned archive.")
             downloadVerified(BOOTSTRAP_URL, partial, BOOTSTRAP_SHA256, onLine)
+        }
+        if (archive.exists()) check(archive.delete()) {
+            "Could not remove a stale Android bootstrap archive."
         }
         check(partial.renameTo(archive)) { "Could not finalize the bootstrap archive." }
 
