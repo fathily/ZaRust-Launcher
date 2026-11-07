@@ -1,6 +1,7 @@
 package dev.horizon.android
 
 import android.content.Context
+import android.os.StatFs
 import android.system.Os
 import org.json.JSONObject
 import java.io.File
@@ -18,13 +19,14 @@ import java.util.zip.ZipInputStream
  */
 object ZaRustOnDeviceNativeBuilder {
     const val DEFAULT_STARLING_COMMIT =
-        "1d45d81bad530e20cfa18e9b47b1d7247b469ea4"
+        "6ce7ca2b3043ec1c347ae88cb907890dee3f0186"
     const val HORIZON_MIXINS_REVISION =
         "0d6b103c70633d8fd9443d8d0acd3aadaacedb06"
 
     private const val SOURCE_REPO = "JuanLuci/starling"
     private const val MAX_SOURCE_ARCHIVE = 420L * 1024L * 1024L
     private const val MAX_SOURCE_EXPANDED = 2_500L * 1024L * 1024L
+    private const val MIN_BUILD_FREE_SPACE = 3L * 1024L * 1024L * 1024L
     private const val MAX_MOD_EXPANDED = 128L * 1024L * 1024L
     private const val MAX_MOD_FILES = 5000
     private val shaPattern = "[0-9a-f]{40}".toRegex()
@@ -73,9 +75,6 @@ object ZaRustOnDeviceNativeBuilder {
         require(status.nativeRunnerInstalled) {
             "This APK is missing its bundled PRoot host runner. Rebuild ZaRust with the native-host component enabled."
         }
-        require(status.freeBytes >= 5L * 1024L * 1024L * 1024L) {
-            "At least 5 GB of free internal storage is required before starting a native build."
-        }
         if (!status.ready) {
             onLine("Preparing ZaRust's private Android toolchain…")
             ZaRustNativeBuildEnvironment.prepare(context, onLine)
@@ -83,7 +82,18 @@ object ZaRustOnDeviceNativeBuilder {
 
         val starlingCommit = resolveStarlingCommit(starlingReference)
         onLine("Selected Starling commit: $starlingCommit")
-        obtainStarlingSource(context, starlingCommit, onLine)
+        val source = obtainStarlingSource(context, starlingCommit, onLine)
+        val sourceBytes = source.walkTopDown().filter { it.isFile }.sumOf { it.length() }
+        val requiredBuildSpace = maxOf(
+            MIN_BUILD_FREE_SPACE,
+            sourceBytes * 2L + 1L * 1024L * 1024L * 1024L
+        )
+        val freeAfterSource = StatFs(context.filesDir.absolutePath).availableBytes
+        require(freeAfterSource >= requiredBuildSpace) {
+            "Not enough free storage for the optimized native build. " +
+                "This source needs about ${requiredBuildSpace / 1024 / 1024 / 1024} GB free after download; " +
+                "temporary source copies and Cargo output are removed when the build ends."
+        }
         val mods = stageImportedMods(context, onLine)
         val work = ZaRustNativeBuildEnvironment.workDirectory(context)
         val toolsDir = File(work, "tools").apply { mkdirs() }
@@ -159,6 +169,12 @@ object ZaRustOnDeviceNativeBuilder {
             metadataFile = metadataFile
         )
         onLine("Native library installed locally: $installedName")
+        // The installed runtime is copied into its own versioned folder. Drop the downloaded
+        // Starling source and staged mod copies so they do not occupy storage between builds.
+        runCatching { source.deleteRecursively() }
+        runCatching {
+            File(ZaRustNativeBuildEnvironment.workDirectory(context), "build-mods").deleteRecursively()
+        }
         return BuildResult(installedName, starlingCommit, modIds, library, metadataFile)
     }
 
@@ -179,6 +195,10 @@ object ZaRustOnDeviceNativeBuilder {
         }
 
         val work = ZaRustNativeBuildEnvironment.workDirectory(context)
+        val availableBeforeDownload = StatFs(context.filesDir.absolutePath).availableBytes
+        require(availableBeforeDownload >= MAX_SOURCE_ARCHIVE + MIN_BUILD_FREE_SPACE) {
+            "Free at least 3 GB plus the source download size before downloading Starling."
+        }
         val archive = File(work, "starling-$commit.zip")
         val temporary = File(work, archive.name + ".partial")
         download(
@@ -235,6 +255,11 @@ object ZaRustOnDeviceNativeBuilder {
                             expanded += count
                             require(expanded <= MAX_SOURCE_EXPANDED) {
                                 "Expanded Starling source exceeds the 2.5 GB safety limit."
+                            }
+                            if (expanded % (16L * 1024L * 1024L) < count) {
+                                require(StatFs(context.filesDir.absolutePath).availableBytes >= MIN_BUILD_FREE_SPACE) {
+                                    "Starling source extraction stopped to preserve 3 GB for native compilation."
+                                }
                             }
                             output.write(buffer, 0, count)
                         }
